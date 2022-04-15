@@ -116,9 +116,24 @@ footer {
   }
 }
 
-.author {
-  font-size: 14px;
-  margin: 0px;
+.illust {
+  &__author {
+    font-size: 14px;
+    margin: 0px;
+  }
+  &__meta {
+    font-size: 14px;
+    margin: 10px 0px;
+  }
+  &__images {
+    display: grid;
+    list-style: none;
+    padding: 0px;
+    margin: 0px;
+    li {
+      margin: auto;
+    }
+  }
 }
 
 .tags {
@@ -150,11 +165,6 @@ nav {
 img.logo {
   float: left;
   margin: 0px 10px 10px 0px;
-}
-
-p.illust_meta {
-  font-size: 14px;
-  margin: 10px 0px;
 }
 
 header.author {

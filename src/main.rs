@@ -215,7 +215,7 @@ fn handle_artwork(client: &ureq::Agent, id: u32) -> rouille::Response {
             h1 { (&artwork.illust_title) }
             /* Author */
             @let link = format!("/users/{}", &artwork.user_id);
-            p class="author" { a href=(&link) { (&artwork.user_name) } }
+            p class="illust__author" { a href=(&link) { (&artwork.user_name) } }
             /* Description */
             @if !artwork.description.is_empty() {
                 p { noscript { (PreEscaped(&artwork.description)) } }
@@ -223,15 +223,17 @@ fn handle_artwork(client: &ureq::Agent, id: u32) -> rouille::Response {
             /* Tags */
             (artwork.tags)
             /* Meta */
-            p class="illust_meta" { (format!("likes: {}, favorites: {}, views: {}", artwork.like_count, artwork.bookmark_count, artwork.view_count)) }
+            p class="illust__meta" { (format!("likes: {}, favorites: {}, views: {}", artwork.like_count, artwork.bookmark_count, artwork.view_count)) }
             /* Images */
-            @for url in std::iter::once(image.clone())
-                .chain(
-                    (1..artwork.page_count).map(|i|
-                        image.clone().replace("_p0.", &format!("_p{}.", i))
-                    )
-                ) {
-                img src=(&url) alt=(&artwork.alt);
+            ul class="illust__images" {
+                @for url in std::iter::once(image.clone())
+                    .chain(
+                        (1..artwork.page_count).map(|i|
+                            image.clone().replace("_p0.", &format!("_p{}.", i))
+                        )
+                    ) {
+                    li { img src=(&url) alt=(&artwork.alt); }
+                }
             }
         },
         html! {
