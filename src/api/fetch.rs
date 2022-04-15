@@ -14,7 +14,7 @@ where
         .set("Referer", "https://pixiv.net/")
         .set(
             "Cookie",
-            &std::env::var("PIXIV_COOKIE")
+            &std::env::args().nth(1)
                 .expect("PIXIV_COOKIE must be set"),
         )
         .call()

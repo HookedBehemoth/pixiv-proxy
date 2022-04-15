@@ -127,8 +127,7 @@ fn handle_imageproxy(client: &ureq::Agent, path: &str) -> rouille::Response {
         .set("Referer", "https://pixiv.net/")
         .set(
             "Cookie",
-            &std::env::var("PIXIV_COOKIE")
-                .expect("PIXIV_COOKIE must be set"),
+            &std::env::args().nth(1).expect("PIXIV_COOKIE must be set"),
         )
         .call()
         .unwrap();
@@ -188,7 +187,10 @@ fn handle_artwork(client: &ureq::Agent, id: u32) -> rouille::Response {
         }
     };
 
-    let image = artwork.urls.original.replace("https://i.pximg.net/", "/imageproxy/");
+    let image = artwork
+        .urls
+        .original
+        .replace("https://i.pximg.net/", "/imageproxy/");
 
     let docs = document! {
         &artwork.illust_title,
