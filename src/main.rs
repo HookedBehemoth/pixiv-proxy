@@ -12,6 +12,7 @@ use maud::{html, PreEscaped};
 use rouille::router;
 
 use rustls::Certificate;
+use std::borrow::Cow;
 use std::sync::Arc;
 use ureq::{Agent, AgentBuilder};
 
@@ -140,6 +141,18 @@ fn handle_imageproxy(client: &ureq::Agent, path: &str) -> rouille::Response {
         .call()
         .unwrap();
 
+    let headers = response
+        .headers_names()
+        .iter()
+        .filter(|&s| s != "cookies")
+        .map(|s| {
+            (
+                Cow::from(s.clone()),
+                Cow::from(response.header(s).unwrap_or("").to_string()),
+            )
+        })
+        .collect();
+
     let reader = match response
         .header("Content-Length")
         .map(|s| s.parse::<usize>())
@@ -150,11 +163,10 @@ fn handle_imageproxy(client: &ureq::Agent, path: &str) -> rouille::Response {
 
     rouille::Response {
         status_code: 200,
-        headers: vec![],
+        headers: headers,
         data: reader,
         upgrade: None,
     }
-    .with_public_cache(365 * 24 * 60 * 60)
 }
 
 fn handle_tags(client: &ureq::Agent, request: &rouille::Request, tag: &str) -> rouille::Response {
