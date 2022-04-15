@@ -56,7 +56,13 @@ main {
   &__item {
     width: 250px;
     height: 300px;
+    position: relative;
   }
+
+  &__image {
+    border-radius: 6px;
+  }
+
   &__text {
     display: inline;
     overflow: hidden;
@@ -64,6 +70,33 @@ main {
     text-overflow: ellipsis;
     font-size: 16px;
     color: #fff;
+  }
+
+  &__hover {
+    padding: 0px 6px;
+    font-weight: bold;
+    font-size: 10px;
+    line-height: 16px;
+    position: absolute;
+    margin: 6px;
+  }
+
+  &__warn {
+    color: white;
+    background: var(--accent);
+    border-radius: 3px;
+  }
+
+  &__count {
+    color: white;
+    fill: white;
+    background: rgba(0, 0, 0, 0.32);
+    border-radius: 10px;
+    right: 0px;
+    &__icon {
+      width: 9px;
+      margin-right: 5px;
+    }
   }
 }
 
@@ -77,6 +110,7 @@ footer {
   font-size: 14px;
   text-align: center;
   color: var(--fg_faded);
+
   a {
     color: var(--fg_faded);
   }
@@ -98,6 +132,7 @@ footer {
     display: inline;
     margin: 0px 12px 0px 0px;
   }
+
   &__translation {
     font-size: 12px;
     margin: 0px 3px;
@@ -106,6 +141,7 @@ footer {
 
 nav {
   text-align: center;
+
   a {
     margin: 0px 10px;
   }
@@ -119,4 +155,8 @@ img.logo {
 p.illust_meta {
   font-size: 14px;
   margin: 10px 0px;
+}
+
+header.author {
+  overflow: auto;
 }

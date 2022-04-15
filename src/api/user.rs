@@ -17,11 +17,7 @@ pub fn fetch_user_illust_ids(client: &ureq::Agent, user_id: &str) -> Result<Vec<
 
     let ids: PixivIllustrations = fetch(client, &url)?;
 
-    let mut ids: Vec<u32> = ids
-        .illusts
-        .into_iter()
-        .map(|(k, _)| k)
-        .collect();
+    let mut ids: Vec<u32> = ids.illusts.into_iter().map(|(k, _)| k).collect();
 
     ids.sort_unstable();
     ids.reverse();
@@ -31,7 +27,7 @@ pub fn fetch_user_illust_ids(client: &ureq::Agent, user_id: &str) -> Result<Vec<
 
 #[derive(Deserialize)]
 pub struct PixivWorks {
-    pub works: HashMap<u32, PixivSearchResult>
+    pub works: HashMap<u32, PixivSearchResult>,
 }
 
 // https://www.pixiv.net/ajax/user/3384404/profile/illusts?ids[]=84485304&ids[]=84473597&work_category=illust&is_first_page=0&lang=en

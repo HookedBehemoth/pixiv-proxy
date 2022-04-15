@@ -1,4 +1,4 @@
-use super::{error::ApiError, fetch::fetch, common::PixivSearchResult};
+use super::{common::PixivSearchResult, error::ApiError, fetch::fetch};
 use serde::Deserialize;
 
 #[derive(Deserialize)]

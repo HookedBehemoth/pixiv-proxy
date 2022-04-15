@@ -1,4 +1,5 @@
 mod api;
+mod util;
 
 use api::{
     artwork::fetch_artwork,
@@ -16,6 +17,7 @@ use ureq::{Agent, AgentBuilder};
 
 const CSS: &str = include_str!(concat!(env!("OUT_DIR"), "/main.css"));
 const FAVICON: &[u8] = include_bytes!("../static/favicon.ico");
+const SVG_PAGE_PATH: &str = "M8,3 C8.55,3 9,3.45 9,4 L9,9 C9,9.55 8.55,10 8,10 L3,10 C2.45,10 2,9.55 2,9 L6,9 C7.1,9 8,8.1 8,7 L8,3 Z M1,1 L6,1 C6.55,1 7,1.45 7,2 L7,7 C7,7.55 6.55,8 6,8 L1,8 C0.45,8 0,7.55 0,7 L0,2 C0,1.45 0.45,1 1,1 Z";
 
 macro_rules! document {
     ($title:expr, $content:expr, $( $head:expr )? ) => {
@@ -65,7 +67,10 @@ fn main() {
     rouille::start_server("0.0.0.0:8080", move |request| {
         router!(request,
             (GET) (/) => {
-                rouille::Response::text("Hello world!")
+                render_search(&client, "けものフレンズ", "popular_d", "safe", 1, "s_tag_full")
+            },
+            (GET) (/en/) => {
+                render_search(&client, "けものフレンズ", "popular_d", "safe", 1, "s_tag_full")
             },
             (GET) (/en/tags/{tag: String}/artworks) => {
                 handle_tags(&client, &request, &tag)
@@ -90,6 +95,9 @@ fn main() {
             },
             (GET) (/artworks/{id: u32}) => {
                 handle_artwork(&client, id)
+            },
+            (GET) (/about) => {
+                render_about()
             },
             _ => {
                 /* Just matching manually now... */
@@ -160,7 +168,18 @@ fn handle_tags(client: &ureq::Agent, request: &rouille::Request, tag: &str) -> r
         .get_param("s_mode")
         .unwrap_or("s_tag_full".to_string());
 
-    let search = match fetch_search(client, tag, &order, &mode, &page.to_string(), &search_mode) {
+    render_search(client, tag, &order, &mode, page, &search_mode)
+}
+
+fn render_search(
+    client: &ureq::Agent,
+    tag: &str,
+    order: &str,
+    mode: &str,
+    page: u32,
+    search_mode: &str,
+) -> rouille::Response {
+    let search = match fetch_search(client, tag, order, mode, &page.to_string(), search_mode) {
         Ok(search) => search,
         Err(err) => {
             return render_api_error(&err);
@@ -174,9 +193,9 @@ fn handle_tags(client: &ureq::Agent, request: &rouille::Request, tag: &str) -> r
             p1 { (&search.illust_manga.total) }
             (render_list(&search.illust_manga.data, page, search.illust_manga.total, "tags", &tag))
         },
-    }
-    .into_string();
-    rouille::Response::html(docs)
+    };
+
+    rouille::Response::html(docs.into_string())
 }
 
 fn handle_artwork(client: &ureq::Agent, id: u32) -> rouille::Response {
@@ -187,10 +206,7 @@ fn handle_artwork(client: &ureq::Agent, id: u32) -> rouille::Response {
         }
     };
 
-    let image = artwork
-        .urls
-        .original
-        .replace("https://i.pximg.net/", "/imageproxy/");
+    let image = util::image_to_proxy(&artwork.urls.original);
 
     let docs = document! {
         &artwork.illust_title,
@@ -221,16 +237,16 @@ fn handle_artwork(client: &ureq::Agent, id: u32) -> rouille::Response {
         html! {
             meta property="og:title" content=(&artwork.illust_title);
             meta property="og:type" content="image";
-            @let description = &artwork.description[0..std::cmp::min(100, artwork.description.len())];
+            @let description = util::truncate(&artwork.description, 100);
             meta property="og:description" content=(&description);
             meta property="og:url" content=(&format!("/artworks/{}", id));
             meta property="og:image" content=(&image);
             meta property="og:image:width" content=(&artwork.width);
             meta property="og:image:height" content=(&artwork.height);
         }
-    }
-    .into_string();
-    rouille::Response::html(docs)
+    };
+
+    rouille::Response::html(docs.into_string())
 }
 
 fn handle_user(
@@ -274,19 +290,17 @@ fn handle_user(
     elements.reverse();
     let elements: Vec<PixivSearchResult> = elements.into_iter().map(|(_, s)| s).collect();
 
-    let image = user
-        .image_big
-        .replace("https://i.pximg.net/", "/imageproxy/");
+    let image = util::image_to_proxy(&user.image_big);
 
-    let doc = document!(
+    let doc = document! {
         &user.name,
         html! {
-            div {
-                img class="logo" src=(&image) alt=(&user.name) width="170" height="170";
+            header class="author" {
+                img class="logo" src=(&image) alt=(&user.name) width="170";
                 h1 { (&user.name) }
                 p { noscript { (PreEscaped(&user.comment_html)) } }
             }
-            div {
+            section {
                 (render_list(&elements, page, count, "users", user_id))
             }
         },
@@ -300,7 +314,7 @@ fn handle_user(
             meta property="og:image:width" content="170";
             meta property="og:image:height" content="170";
         }
-    );
+    };
 
     rouille::Response::html(doc.into_string())
 }
@@ -312,13 +326,26 @@ fn render_list(
     nav_type: &str,
     nav_index: &str,
 ) -> maud::Markup {
-    html!(
+    html! {
         ul class="search" {
             @for artwork in list {
                 @let link = format!("/en/artworks/{}", artwork.id);
-                @let img = artwork.url.replace("https://i.pximg.net/", "/imageproxy/");
+                @let img = util::image_to_proxy(&artwork.url);
                 li class="search__item" {
-                    a href=(&link) { img src=(&img) width="250" height="250"; }
+                    a href=(&link) {
+                        @if artwork.r18 == 1 {
+                            div class="search__hover search__warn" { "R-18" }
+                        }
+                        @if artwork.page_count > 1 {
+                            div class="search__hover search__count" {
+                                svg class="search__count__icon" viewBox="0 0 10 10" {
+                                    path d=(SVG_PAGE_PATH);
+                                }
+                                (artwork.page_count)
+                            }
+                        }
+                        img class="search__image" src=(&img) width="250" height="250";
+                    }
                     a href=(&link) class="search__text" { (&artwork.title) }
                 }
             }
@@ -335,19 +362,19 @@ fn render_list(
                 }
             }
         }
-    )
+    }
 }
 
 fn render_error(code: u16, message: &str) -> rouille::Response {
     let title = format!("{} - {}", code, message);
 
-    let doc = document!(
+    let doc = document! {
         &title,
         html! {
             h1 { (&title) }
             p { a href="/" { "Go home" } }
         },
-    );
+    };
 
     rouille::Response::html(doc.into_string()).with_status_code(code)
 }
@@ -357,4 +384,17 @@ fn render_api_error(err: &ApiError) -> rouille::Response {
         ApiError::External(code, message) => render_error(*code, message),
         ApiError::Internal(message) => render_error(500, message),
     }
+}
+
+fn render_about() -> rouille::Response {
+    let doc = document! {
+        "About",
+        html! {
+            h1 { "About" }
+            p { "This is a simple Pixiv API client written in Rust." }
+            p { "The source code is available on " a href="https://github.com/HookedBehemoth/pixiv-proxy" { "GitHub" } "." }
+        },
+    };
+
+    rouille::Response::html(doc.into_string())
 }
