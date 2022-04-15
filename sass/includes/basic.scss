@@ -52,11 +52,14 @@ main {
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   grid-gap: 0.5rem;
   list-style: none;
+  margin: 0px;
+  padding: 0px;
 
   &__item {
     width: 250px;
     height: 300px;
     position: relative;
+    margin: auto;
   }
 
   &__image {
