@@ -27,8 +27,10 @@ const SVG_EYE_INNER_PATH: &str = "M7 8.5a2.5 2.5 0 110-5 2.5 2.5 0 010 5zm0-1a1.
 macro_rules! document {
     ($title:expr, $content:expr, $( $head:expr )? ) => {
         html! {
+            (maud::DOCTYPE)
             html lang="en" {
                 head {
+                    meta charset="utf-8";
                     title { ($title) }
                     style { (CSS) }
                     meta name="viewport" content="width=device-width, initial-scale=1";
