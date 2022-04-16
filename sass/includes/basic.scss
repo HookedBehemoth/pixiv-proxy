@@ -127,6 +127,10 @@ footer {
   &__meta {
     font-size: 14px;
     margin: 10px 0px;
+    svg {
+      margin: 0px 5px;
+      width: 12px;
+    }
   }
   &__images {
     display: grid;
