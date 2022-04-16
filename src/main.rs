@@ -208,7 +208,7 @@ fn render_search(
         &tag,
         html! {
             h1 { (&tag) }
-            p1 { (&search.illust_manga.total) }
+            (&search.illust_manga.total)
             (render_list(&search.illust_manga.data))
             @if search.illust_manga.total > 60 {
                 @let format = format!("/tags/{}/artworks?order={}&mode={}&s_mode={}&p=", tag, order, mode, search_mode);
@@ -238,7 +238,7 @@ fn handle_artwork(client: &ureq::Agent, id: u32) -> rouille::Response {
             h1 { (&artwork.illust_title) }
             /* Author */
             @let link = format!("/users/{}", &artwork.user_id);
-            p class="illust__author" { a href=(&link) { (&artwork.user_name) } }
+            p.illust__author { a href=(&link) { (&artwork.user_name) } }
             /* Description */
             @if !artwork.description.is_empty() {
                 p { noscript { (PreEscaped(&artwork.description)) } }
@@ -246,15 +246,15 @@ fn handle_artwork(client: &ureq::Agent, id: u32) -> rouille::Response {
             /* Tags */
             (artwork.tags)
             /* Meta */
-            p class="illust__meta" {
+            p.illust__meta {
                 @if date.is_ok() {
                     time datetime=(&artwork.create_date) {
                         (date.unwrap().format("%Y-%m-%d %H:%M:%S -"))
                     }
                 }
-                svg viewBox="0 0 12 12" { path d=(&SVG_LIKE_PATH) fill="currentColor"; }
+                svg viewBox="0 0 12 12" { path d=(&SVG_LIKE_PATH) fill="currentColor" {} }
                 (artwork.like_count)
-                svg viewBox="0 0 12 12" { path d=(&SVG_HEART_PATH) fill="currentColor"; }
+                svg viewBox="0 0 12 12" { path d=(&SVG_HEART_PATH) fill="currentColor" {} }
                 (artwork.bookmark_count)
                 svg viewBox="0 0 14 12" {
                     path d=(&SVG_EYE_OUTER_PATH) fill="currentColor" {}
@@ -263,7 +263,7 @@ fn handle_artwork(client: &ureq::Agent, id: u32) -> rouille::Response {
                 (artwork.view_count)
             }
             /* Images */
-            ul class="illust__images" {
+            ul.illust__images {
                 @for url in std::iter::once(image.clone())
                     .chain(
                         (1..artwork.page_count).map(|i|
@@ -335,8 +335,8 @@ fn handle_user(
     let doc = document! {
         &user.name,
         html! {
-            header class="author" {
-                img class="logo" src=(&image) alt=(&user.name) width="170";
+            header.author {
+                img.logo src=(&image) alt=(&user.name) width="170";
                 h1 { (&user.name) }
                 p { noscript { (PreEscaped(&user.comment_html)) } }
             }
@@ -365,26 +365,26 @@ fn handle_user(
 
 fn render_list(list: &[PixivSearchResult]) -> maud::Markup {
     html! {
-        ul class="search" {
+        ul.search {
             @for artwork in list {
                 @let link = format!("/en/artworks/{}", artwork.id);
                 @let img = util::image_to_proxy(&artwork.url);
-                li class="search__item" {
+                li {
                     a href=(&link) {
                         @if artwork.r18 == 1 {
-                            div class="search__hover search__warn" { "R-18" }
+                            div.search__hover.search__warn { "R-18" }
                         }
                         @if artwork.page_count > 1 {
-                            div class="search__hover search__count" {
-                                svg class="search__count__icon" viewBox="0 0 10 10" {
+                            div.search__hover.search__count {
+                                svg viewBox="0 0 10 10" {
                                     path d=(SVG_PAGE_PATH);
                                 }
                                 (artwork.page_count)
                             }
                         }
-                        img class="search__image" src=(&img) width="250" height="250";
+                        img src=(&img) width="250" height="250";
                     }
-                    a href=(&link) class="search__text" { (&artwork.title) }
+                    a href=(&link) { (&artwork.title) }
                 }
             }
         }

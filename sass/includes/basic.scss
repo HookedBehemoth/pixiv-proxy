@@ -55,24 +55,21 @@ main {
   margin: 0px;
   padding: 0px;
 
-  &__item {
+  li {
     width: 250px;
     height: 300px;
     position: relative;
     margin: auto;
+    line-height: normal;
   }
 
-  &__image {
+  img {
     border-radius: 6px;
   }
 
-  &__text {
-    display: inline;
-    overflow: hidden;
-    text-decoration: none;
-    text-overflow: ellipsis;
+  a {
     font-size: 16px;
-    color: #fff;
+    color: var(--fg_color);
   }
 
   &__hover {
@@ -96,7 +93,8 @@ main {
     background: rgba(0, 0, 0, 0.32);
     border-radius: 10px;
     right: 0px;
-    &__icon {
+
+    svg {
       width: 9px;
       margin-right: 5px;
     }
@@ -124,19 +122,23 @@ footer {
     font-size: 14px;
     margin: 0px;
   }
+
   &__meta {
     font-size: 14px;
     margin: 10px 0px;
+
     svg {
       margin: 0px 5px;
       width: 12px;
     }
   }
+
   &__images {
     display: grid;
     list-style: none;
     padding: 0px;
     margin: 0px;
+
     li {
       margin: auto;
     }
@@ -147,24 +149,25 @@ footer {
   margin: 0px;
   list-style: none;
   padding-left: 0px;
-  word-break: break-all;
+  line-height: normal;
 
-  &__item {
+  li {
     font-size: 14px;
     display: inline;
     margin: 0px 12px 0px 0px;
-  }
 
-  &__translation {
-    font-size: 12px;
-    margin: 0px 3px;
+    span {
+      font-size: 12px;
+      margin: 0px 3px;
+    }
   }
 }
 
 nav {
   text-align: center;
 
-  a {
+  a,
+  span {
     margin: 0px 10px;
   }
 }

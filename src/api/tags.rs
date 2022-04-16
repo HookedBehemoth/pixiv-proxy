@@ -22,11 +22,11 @@ impl maud::Render for Tags {
             ul class="tags" {
                 @for tag in self.tags.iter() {
                     @let link = format!("/tags/{}/artworks", tag.tag);
-                    li class="tags__item" {
+                    li {
                         a href=(&link) { (&tag.tag) }
                         @if let Some(ref translation) = tag.translation {
                             @if let Some(ref en) = translation.en {
-                                span class="tags__translation" { (&en) }
+                                span { (&en) }
                             }
                         }
                     }
