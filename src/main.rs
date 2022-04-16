@@ -391,17 +391,21 @@ fn render_list(list: &[PixivSearchResult]) -> maud::Markup {
     }
 }
 
-fn render_nav(page: u32, count: usize, template: &str) -> maud::Markup {
+fn render_nav(current_page: u32, count: usize, template: &str) -> maud::Markup {
     html! {
         @if count > 60 {
             nav {
                 @let min = 1;
                 @let max = count / 60 + 1;
-                @let nav_start = std::cmp::max(min as i32, page as i32 - 3);
+                @let nav_start = std::cmp::max(min as i32, current_page as i32 - 3);
                 @let nav_end = std::cmp::min(max as i32, nav_start + 7);
                 @for page in nav_start..nav_end {
-                    @let link = format!("{}{}", template, page);
-                    a href=(&link) { (&page) }
+                    @if page as u32 == current_page {
+                        span { (page) }
+                    } @else {
+                        @let link = format!("{}{}", template, page);
+                        a href=(&link) { (page) }
+                    }
                 }
             }
         }
