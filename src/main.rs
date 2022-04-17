@@ -21,8 +21,10 @@ const FAVICON: &[u8] = include_bytes!("../static/favicon.ico");
 const SVG_PAGE_PATH: &str = "M8,3C8.55,3 9,3.45 9,4L9,9C9,9.55 8.55,10 8,10L3,10C2.45,10 2,9.55 2,9L6,9C7.1,9 8,8.1 8,7L8,3Z M1,1L6,1C6.55,1 7,1.45 7,2L7,7C7,7.55 6.55,8 6,8L1,8C0.45,8 0,7.55 0,7L0,2C0,1.45 0.45,1 1,1Z";
 const SVG_LIKE_PATH: &str = "M2 6a2 2 0 110-4 2 2 0 010 4zm8 0a2 2 0 110-4 2 2 0 010 4zM2.11 8.89a1 1 0 011.415-1.415 3.5 3.5 0 004.95 0 1 1 0 011.414 1.414 5.5 5.5 0 01-7.778 0z";
 const SVG_HEART_PATH: &str = "M9,0.75 C10.5,0.75 12,2 12,3.75 C12,6.5 10,9.25 6.25,11.5L6.25,11.5 C6,11.5 6,11.5 5.75,11.5C2,9.25 0,6.75 0,3.75 C1.1324993e-16,2 1.5,0.75 3,0.75C4,0.75 5.25,1.5 6,2.75 C6.75,1.5 9,0.75 9,0.75 Z";
-const SVG_EYE_OUTER_PATH: &str = "M0 6c2-3.333 4.333-5 7-5s5 1.667 7 5c-2 3.333-4.333 5-7 5S2 9.333 0 6z";
-const SVG_EYE_INNER_PATH: &str = "M7 8.5a2.5 2.5 0 110-5 2.5 2.5 0 010 5zm0-1a1.5 1.5 0 100-3 1.5 1.5 0 000 3z";
+const SVG_EYE_OUTER_PATH: &str =
+    "M0 6c2-3.333 4.333-5 7-5s5 1.667 7 5c-2 3.333-4.333 5-7 5S2 9.333 0 6z";
+const SVG_EYE_INNER_PATH: &str =
+    "M7 8.5a2.5 2.5 0 110-5 2.5 2.5 0 010 5zm0-1a1.5 1.5 0 100-3 1.5 1.5 0 000 3z";
 
 macro_rules! document {
     ($title:expr, $content:expr, $( $head:expr )? ) => {
@@ -126,7 +128,6 @@ fn main() {
                         data: rouille::ResponseBody::empty(),
                         upgrade: None,
                     }
-
                 } else {
                     rouille::Response::empty_404()
                 }
@@ -264,13 +265,25 @@ fn handle_artwork(client: &ureq::Agent, id: u32) -> rouille::Response {
             }
             /* Images */
             ul.illust__images {
-                @for url in std::iter::once(image.clone())
-                    .chain(
-                        (1..artwork.page_count).map(|i|
-                            image.clone().replace("_p0.", &format!("_p{}.", i))
-                        )
-                    ) {
-                    li { img src=(&url) alt=(&artwork.alt); }
+                @if artwork.illust_type == 0 {
+                    @for url in std::iter::once(image.clone())
+                        .chain(
+                            (1..artwork.page_count).map(|i|
+                                image.clone().replace("_p0.", &format!("_p{}.", i))
+                            )
+                        ) {
+                        li { img src=(&url) alt=(&artwork.alt); }
+                    }
+                } @else {
+                    @let url = format!("https://ugoira.huggy.moe/api/convert/mp4/undefined/{}", id);
+                    @let response = client
+                        .get(&url)
+                        .call()
+                        .unwrap();
+                    @let json: serde_json::Value = response.into_json().unwrap();
+                    @let mp4 = json["url"].as_str().unwrap();
+
+                    li { video poster=(&image) src=(&mp4) loop="" autoplay="" {} }
                 }
             }
         },
