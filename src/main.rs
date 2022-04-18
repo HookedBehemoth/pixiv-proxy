@@ -9,13 +9,13 @@ use api::{
     ugoira::fetch_ugoira_meta,
     user::{fetch_user_illust_ids, fetch_user_illustrations, fetch_user_profile},
 };
-use image::GenericImageView;
+use image::{GenericImageView, EncodableLayout};
 use maud::{html, PreEscaped};
 use rouille::router;
 
 use rustls::Certificate;
-use std::sync::Arc;
-use std::{borrow::Cow, io::Read};
+use std::{borrow::Cow, io::{Read, Write}};
+use std::{io::BufReader, sync::Arc};
 use ureq::{Agent, AgentBuilder};
 
 const CSS: &str = include_str!(concat!(env!("OUT_DIR"), "/main.css"));
@@ -200,17 +200,36 @@ fn handle_ugoira(client: &ureq::Agent, id: u32) -> rouille::Response {
         .call()
         .unwrap();
 
-    let mut reader = ugoira.into_reader();
-    let mut buffer = Vec::new();
-    let _ = reader.read_to_end(&mut buffer).unwrap();
-    let mut zip = zip::ZipArchive::new(std::io::Cursor::new(buffer)).unwrap();
+    let reader = ugoira.into_reader();
+    let mut reader = BufReader::with_capacity(0x4000, reader);
 
-    let mut file_buffer = vec![];
-    zip.by_index(0)
-        .unwrap()
-        .read_to_end(&mut file_buffer)
-        .unwrap();
-    let img = image::load_from_memory_with_format(&file_buffer, meta.mime_type.format).unwrap();
+    fn read_img_from_zip<R: Read>(
+        reader: &mut R,
+        format: image::ImageFormat,
+    ) -> image::DynamicImage {
+        let mut file = zip::read::read_zipfile_from_stream(reader)
+            .unwrap()
+            .unwrap();
+        let mut buffer = vec![];
+        file.read_to_end(&mut buffer).unwrap();
+        image::load_from_memory_with_format(&buffer, format).unwrap()
+    }
+
+    fn write_frame<T: Write>(
+        writer: &mut png::Writer<T>,
+        img: &image::DynamicImage,
+        delay: u16,
+    ) -> std::io::Result<()> {
+        writer.set_frame_delay(delay, 1000).unwrap();
+        /* Note: This is very stupid. A call to "to_rgb8" is costly even if we already are rgb8 */
+        match img.as_rgb8() {
+            Some(img) => writer.write_image_data(img.as_bytes())?,
+            None => writer.write_image_data(&img.to_rgb8())?,
+        }
+        Ok(())
+    }
+
+    let img = read_img_from_zip(&mut reader, meta.mime_type.format);
     let (width, height) = img.dimensions();
 
     let mut out_buffer = Vec::new();
@@ -221,17 +240,15 @@ fn handle_ugoira(client: &ureq::Agent, id: u32) -> rouille::Response {
     encoder.set_animated(meta.frames.len() as u32, 0).unwrap();
 
     let mut writer = encoder.write_header().unwrap();
-    writer.set_frame_delay(meta.frames[0].delay, 1000).unwrap();
-    writer.write_image_data(img.as_bytes()).unwrap();
 
-    for idx in 1..zip.len() {
-        let mut buffer = vec![];
-        zip.by_index(idx).unwrap().read_to_end(&mut buffer).unwrap();
-        let img = image::load_from_memory_with_format(&buffer, meta.mime_type.format).unwrap();
-        writer
-            .set_frame_delay(meta.frames[idx].delay, 1000)
-            .unwrap();
-        writer.write_image_data(img.as_bytes()).unwrap();
+    /* Write the first frame we already decoded */
+    write_frame(&mut writer, &img, meta.frames[0].delay).unwrap();
+
+    for delay in meta.frames[1..].iter().map(|m| m.delay) {
+        /* Read image file */
+        let img = read_img_from_zip(&mut reader, meta.mime_type.format);
+        /* Write to animation */
+        write_frame(&mut writer, &img, delay).unwrap();
     }
 
     writer.finish().unwrap();
