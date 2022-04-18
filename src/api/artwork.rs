@@ -8,8 +8,8 @@ pub struct PixivUrls {
 
 #[derive(Deserialize)]
 pub struct Artwork {
-    // #[serde(rename = "illustType")]
-    // illust_type: u8,
+    #[serde(rename = "illustType")]
+    pub illust_type: u8,
     #[serde(rename = "illustTitle")]
     pub illust_title: String,
     #[serde(rename = "pageCount")]

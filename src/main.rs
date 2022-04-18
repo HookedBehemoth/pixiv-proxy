@@ -6,14 +6,16 @@ use api::{
     common::PixivSearchResult,
     error::ApiError,
     search::fetch_search,
+    ugoira::fetch_ugoira_meta,
     user::{fetch_user_illust_ids, fetch_user_illustrations, fetch_user_profile},
 };
+use image::GenericImageView;
 use maud::{html, PreEscaped};
 use rouille::router;
 
 use rustls::Certificate;
-use std::borrow::Cow;
 use std::sync::Arc;
+use std::{borrow::Cow, io::Read};
 use ureq::{Agent, AgentBuilder};
 
 const CSS: &str = include_str!(concat!(env!("OUT_DIR"), "/main.css"));
@@ -21,8 +23,10 @@ const FAVICON: &[u8] = include_bytes!("../static/favicon.ico");
 const SVG_PAGE_PATH: &str = "M8,3C8.55,3 9,3.45 9,4L9,9C9,9.55 8.55,10 8,10L3,10C2.45,10 2,9.55 2,9L6,9C7.1,9 8,8.1 8,7L8,3Z M1,1L6,1C6.55,1 7,1.45 7,2L7,7C7,7.55 6.55,8 6,8L1,8C0.45,8 0,7.55 0,7L0,2C0,1.45 0.45,1 1,1Z";
 const SVG_LIKE_PATH: &str = "M2 6a2 2 0 110-4 2 2 0 010 4zm8 0a2 2 0 110-4 2 2 0 010 4zM2.11 8.89a1 1 0 011.415-1.415 3.5 3.5 0 004.95 0 1 1 0 011.414 1.414 5.5 5.5 0 01-7.778 0z";
 const SVG_HEART_PATH: &str = "M9,0.75 C10.5,0.75 12,2 12,3.75 C12,6.5 10,9.25 6.25,11.5L6.25,11.5 C6,11.5 6,11.5 5.75,11.5C2,9.25 0,6.75 0,3.75 C1.1324993e-16,2 1.5,0.75 3,0.75C4,0.75 5.25,1.5 6,2.75 C6.75,1.5 9,0.75 9,0.75 Z";
-const SVG_EYE_OUTER_PATH: &str = "M0 6c2-3.333 4.333-5 7-5s5 1.667 7 5c-2 3.333-4.333 5-7 5S2 9.333 0 6z";
-const SVG_EYE_INNER_PATH: &str = "M7 8.5a2.5 2.5 0 110-5 2.5 2.5 0 010 5zm0-1a1.5 1.5 0 100-3 1.5 1.5 0 000 3z";
+const SVG_EYE_OUTER_PATH: &str =
+    "M0 6c2-3.333 4.333-5 7-5s5 1.667 7 5c-2 3.333-4.333 5-7 5S2 9.333 0 6z";
+const SVG_EYE_INNER_PATH: &str =
+    "M7 8.5a2.5 2.5 0 110-5 2.5 2.5 0 010 5zm0-1a1.5 1.5 0 100-3 1.5 1.5 0 000 3z";
 
 macro_rules! document {
     ($title:expr, $content:expr, $( $head:expr )? ) => {
@@ -103,6 +107,9 @@ fn main() {
             (GET) (/artworks/{id: u32}) => {
                 handle_artwork(&client, id)
             },
+            (GET) (/ugoira/{id: u32}) => {
+                handle_ugoira(&client, id)
+            },
             (GET) (/about) => {
                 render_about()
             },
@@ -175,6 +182,63 @@ fn handle_imageproxy(client: &ureq::Agent, path: &str) -> rouille::Response {
     }
 }
 
+fn handle_ugoira(client: &ureq::Agent, id: u32) -> rouille::Response {
+    let meta = match fetch_ugoira_meta(client, id) {
+        Ok(meta) => meta,
+        Err(_) => {
+            println!("Error fetching ugoira meta: {}", id);
+            return rouille::Response::empty_404();
+        }
+    };
+    let ugoira = client
+        .get(&meta.original_src)
+        .set("Referer", "https://pixiv.net/")
+        .set(
+            "Cookie",
+            &std::env::args().nth(1).expect("PIXIV_COOKIE must be set"),
+        )
+        .call()
+        .unwrap();
+
+    let mut reader = ugoira.into_reader();
+    let mut buffer = Vec::new();
+    let _ = reader.read_to_end(&mut buffer).unwrap();
+    let mut zip = zip::ZipArchive::new(std::io::Cursor::new(buffer)).unwrap();
+
+    let mut file_buffer = vec![];
+    zip.by_index(0)
+        .unwrap()
+        .read_to_end(&mut file_buffer)
+        .unwrap();
+    let img = image::load_from_memory_with_format(&file_buffer, meta.mime_type.format).unwrap();
+    let (width, height) = img.dimensions();
+
+    let mut out_buffer = Vec::new();
+
+    let mut encoder = png::Encoder::new(&mut out_buffer, width, height);
+    encoder.set_color(png::ColorType::Rgb);
+    encoder.set_depth(png::BitDepth::Eight);
+    encoder.set_animated(meta.frames.len() as u32, 0).unwrap();
+
+    let mut writer = encoder.write_header().unwrap();
+    writer.set_frame_delay(meta.frames[0].delay, 1000).unwrap();
+    writer.write_image_data(img.as_bytes()).unwrap();
+
+    for idx in 1..zip.len() {
+        let mut buffer = vec![];
+        zip.by_index(idx).unwrap().read_to_end(&mut buffer).unwrap();
+        let img = image::load_from_memory_with_format(&buffer, meta.mime_type.format).unwrap();
+        writer
+            .set_frame_delay(meta.frames[idx].delay, 1000)
+            .unwrap();
+        writer.write_image_data(img.as_bytes()).unwrap();
+    }
+
+    writer.finish().unwrap();
+
+    rouille::Response::from_data("image/apng", out_buffer)
+}
+
 fn handle_tags(client: &ureq::Agent, request: &rouille::Request, tag: &str) -> rouille::Response {
     let order = request.get_param("order").unwrap_or("date_d".to_string());
     let mode = request.get_param("mode").unwrap_or("all".to_string());
@@ -228,7 +292,11 @@ fn handle_artwork(client: &ureq::Agent, id: u32) -> rouille::Response {
         }
     };
 
-    let image = util::image_to_proxy(&artwork.urls.original);
+    let image = match artwork.illust_type {
+        0 => util::image_to_proxy(&artwork.urls.original),
+        2 => format!("/ugoira/{}", id),
+        _ => "/static/unknown_image.png".to_string(),
+    };
     let date = chrono::DateTime::parse_from_rfc3339(&artwork.create_date);
 
     let docs = document! {
