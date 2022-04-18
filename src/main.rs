@@ -310,9 +310,8 @@ fn handle_artwork(client: &ureq::Agent, id: u32) -> rouille::Response {
     };
 
     let image = match artwork.illust_type {
-        0 => util::image_to_proxy(&artwork.urls.original),
         2 => format!("/ugoira/{}", id),
-        _ => "/static/unknown_image.png".to_string(),
+        _ => util::image_to_proxy(&artwork.urls.original),
     };
     let date = chrono::DateTime::parse_from_rfc3339(&artwork.create_date);
 
