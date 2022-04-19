@@ -215,7 +215,7 @@ fn handle_ugoira(client: &ureq::Agent, id: u32) -> rouille::Response {
         buffer
     }
 
-    let out = format!("/var/www/cunnycon.org/htdocs/{}.webm", id);
+    let out = format!("/var/www/cunnycon.org/htdocs/{}.mp4", id);
     let framerate = (1000 / meta.frames[0].delay).to_string();
 
     let mut ffmpeg = Command::new("ffmpeg")
@@ -225,7 +225,7 @@ fn handle_ugoira(client: &ureq::Agent, id: u32) -> rouille::Response {
             "-i",
             "pipe:0",
             "-c:v",
-            "libvpx",
+            "libx264",
             "-quality",
             "best",
             "-vf",
@@ -246,7 +246,7 @@ fn handle_ugoira(client: &ureq::Agent, id: u32) -> rouille::Response {
     }
     ffmpeg.wait().unwrap();
 
-    let url = format!("https://cunnycon.org/{}.webm", id);
+    let url = format!("https://cunnycon.org/{}.mp4", id);
     rouille::Response::redirect_301(url)
 }
 
@@ -341,9 +341,9 @@ fn handle_artwork(client: &ureq::Agent, id: u32) -> rouille::Response {
             ul.illust__images {
                 @match artwork.illust_type {
                     2 => {
-                        @let path = format!("/var/www/cunnycon.org/{}.webm", id);
+                        @let path = format!("/var/www/cunnycon.org/{}.mp4", id);
                         @let src = if std::path::Path::new(&path).exists() {
-                            format!("https://cunnycon.org/{}.webm", id)
+                            format!("https://cunnycon.org/{}.mp4", id)
                         } else {
                             format!("/ugoira/{}", id)
                         };
