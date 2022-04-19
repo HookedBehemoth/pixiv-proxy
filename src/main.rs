@@ -347,7 +347,7 @@ fn handle_artwork(client: &ureq::Agent, id: u32) -> rouille::Response {
                             format!("/ugoira/{}", id)
                         };
                         li {
-                            video poster=(&image) src=(&src) {}
+                            video poster=(&image) src=(&src) autoplay="" loop="" {}
                         }
                     },
                     _ => @for url in std::iter::once(image.clone())
