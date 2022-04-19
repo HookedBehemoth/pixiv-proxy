@@ -244,6 +244,7 @@ fn handle_ugoira(client: &ureq::Agent, id: u32) -> rouille::Response {
         let _ = delay;
         stdin.write(&read_img_from_zip(&mut reader)).unwrap();
     }
+    ffmpeg.wait().unwrap();
 
     let url = format!("https://cunnycon.org/{}.webm", id);
     rouille::Response::redirect_301(url)
