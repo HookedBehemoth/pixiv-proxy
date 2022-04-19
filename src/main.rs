@@ -371,6 +371,13 @@ fn handle_artwork(client: &ureq::Agent, id: u32) -> rouille::Response {
             meta property="og:image" content=(&image);
             meta property="og:image:width" content=(&artwork.width);
             meta property="og:image:height" content=(&artwork.height);
+            @if artwork.illust_type == 2 {
+                @let url = format!("https://cunnycon.org/{}.mp4", id);
+                meta property="og:video" content=(&url);
+                meta property="og:video:type" content="video/mp4";
+                meta property="og:video:width" content=(&artwork.width);
+                meta property="og:video:height" content=(&artwork.height);
+            }
         }
     };
 
