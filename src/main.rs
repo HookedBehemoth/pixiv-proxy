@@ -9,12 +9,15 @@ use api::{
     ugoira::fetch_ugoira_meta,
     user::{fetch_user_illust_ids, fetch_user_illustrations, fetch_user_profile},
 };
-use image::{GenericImageView, EncodableLayout};
 use maud::{html, PreEscaped};
 use rouille::router;
 
 use rustls::Certificate;
-use std::{borrow::Cow, io::{Read, Write}};
+use std::{
+    borrow::Cow,
+    io::{Read, Write},
+    process::{Command, Stdio},
+};
 use std::{io::BufReader, sync::Arc};
 use ureq::{Agent, AgentBuilder};
 
@@ -203,57 +206,47 @@ fn handle_ugoira(client: &ureq::Agent, id: u32) -> rouille::Response {
     let reader = ugoira.into_reader();
     let mut reader = BufReader::with_capacity(0x4000, reader);
 
-    fn read_img_from_zip<R: Read>(
-        reader: &mut R,
-        format: image::ImageFormat,
-    ) -> image::DynamicImage {
+    fn read_img_from_zip<R: Read>(reader: &mut R) -> Vec<u8> {
         let mut file = zip::read::read_zipfile_from_stream(reader)
             .unwrap()
             .unwrap();
         let mut buffer = vec![];
         file.read_to_end(&mut buffer).unwrap();
-        image::load_from_memory_with_format(&buffer, format).unwrap()
+        buffer
     }
 
-    fn write_frame<T: Write>(
-        writer: &mut png::Writer<T>,
-        img: &image::DynamicImage,
-        delay: u16,
-    ) -> std::io::Result<()> {
-        writer.set_frame_delay(delay, 1000).unwrap();
-        /* Note: This is very stupid. A call to "to_rgb8" is costly even if we already are rgb8 */
-        match img.as_rgb8() {
-            Some(img) => writer.write_image_data(img.as_bytes())?,
-            None => writer.write_image_data(&img.to_rgb8())?,
-        }
-        Ok(())
+    let out = format!("/var/www/cunnycon.org/htdocs/{}.webm", id);
+    let framerate = (1000 / meta.frames[0].delay).to_string();
+
+    let mut ffmpeg = Command::new("ffmpeg")
+        .args(&[
+            "-framerate",
+            &framerate,
+            "-i",
+            "pipe:0",
+            "-c:v",
+            "libvpx",
+            "-quality",
+            "best",
+            "-vf",
+            "pad=ceil(iw/2)*2:ceil(ih/2)*2",
+            "-pix_fmt",
+            "yuv420p",
+            "-y",
+            &out,
+        ])
+        .stdin(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let stdin = ffmpeg.stdin.as_mut().unwrap();
+    for delay in meta.frames {
+        /* TODO: Use this eventually */
+        let _ = delay;
+        stdin.write(&read_img_from_zip(&mut reader)).unwrap();
     }
 
-    let img = read_img_from_zip(&mut reader, meta.mime_type.format);
-    let (width, height) = img.dimensions();
-
-    let mut out_buffer = Vec::new();
-
-    let mut encoder = png::Encoder::new(&mut out_buffer, width, height);
-    encoder.set_color(png::ColorType::Rgb);
-    encoder.set_depth(png::BitDepth::Eight);
-    encoder.set_animated(meta.frames.len() as u32, 0).unwrap();
-
-    let mut writer = encoder.write_header().unwrap();
-
-    /* Write the first frame we already decoded */
-    write_frame(&mut writer, &img, meta.frames[0].delay).unwrap();
-
-    for delay in meta.frames[1..].iter().map(|m| m.delay) {
-        /* Read image file */
-        let img = read_img_from_zip(&mut reader, meta.mime_type.format);
-        /* Write to animation */
-        write_frame(&mut writer, &img, delay).unwrap();
-    }
-
-    writer.finish().unwrap();
-
-    rouille::Response::from_data("image/apng", out_buffer)
+    let url = format!("https://cunnycon.org/{}.webm", id);
+    rouille::Response::redirect_301(url)
 }
 
 fn handle_tags(client: &ureq::Agent, request: &rouille::Request, tag: &str) -> rouille::Response {
@@ -309,10 +302,7 @@ fn handle_artwork(client: &ureq::Agent, id: u32) -> rouille::Response {
         }
     };
 
-    let image = match artwork.illust_type {
-        2 => format!("/ugoira/{}", id),
-        _ => util::image_to_proxy(&artwork.urls.original),
-    };
+    let image = util::image_to_proxy(&artwork.urls.original);
     let date = chrono::DateTime::parse_from_rfc3339(&artwork.create_date);
 
     let docs = document! {
@@ -348,13 +338,26 @@ fn handle_artwork(client: &ureq::Agent, id: u32) -> rouille::Response {
             }
             /* Images */
             ul.illust__images {
-                @for url in std::iter::once(image.clone())
-                    .chain(
-                        (1..artwork.page_count).map(|i|
-                            image.clone().replace("_p0.", &format!("_p{}.", i))
-                        )
-                    ) {
-                    li { img src=(&url) alt=(&artwork.alt); }
+                @match artwork.illust_type {
+                    2 => {
+                        @let path = format!("/var/www/cunnycon.org/{}.webm", id);
+                        @let src = if std::path::Path::new(&path).exists() {
+                            format!("https://cunnycon.org/{}.webm", id)
+                        } else {
+                            format!("/ugoira/{}", id)
+                        };
+                        li {
+                            video poster=(&image) src=(&src) {}
+                        }
+                    },
+                    _ => @for url in std::iter::once(image.clone())
+                        .chain(
+                            (1..artwork.page_count).map(|i|
+                                image.clone().replace("_p0.", &format!("_p{}.", i))
+                            )
+                        ) {
+                        li { img src=(&url) alt=(&artwork.alt); }
+                    }
                 }
             }
         },
