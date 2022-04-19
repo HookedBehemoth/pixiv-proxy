@@ -364,7 +364,7 @@ fn handle_artwork(client: &ureq::Agent, id: u32) -> rouille::Response {
         },
         html! {
             meta property="og:title" content=(&artwork.illust_title);
-            meta property="og:type" content="image";
+            meta property="og:type" content="article";
             @let description = util::truncate(&artwork.description, 100);
             meta property="og:description" content=(&description);
             meta property="og:url" content=(&format!("/artworks/{}", id));
