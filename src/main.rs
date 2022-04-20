@@ -92,6 +92,13 @@ fn main() {
             (GET) (/tags/{tag: String}/artworks) => {
                 handle_tags(&client, &request, &tag)
             },
+            (GET) (/search) => {
+                let term = match request.get_param("q") {
+                    Some(term) => term,
+                    None => return render_error(401, "No search term"),
+                };
+                handle_tags(&client, &request, &term)
+            },
             (GET) (/en/users/{id: String}/artworks) => {
                 handle_user(&client, &request, &id)
             },
@@ -279,11 +286,37 @@ fn render_search(
         }
     };
 
+    fn make_option(name: &str, value: &str, mode: &str) -> maud::Markup {
+        html! {
+            @if mode == value {
+                option value=(&value) selected { (&name) }
+            } @else {
+                option value=(&value) { (&name) }
+            }
+        }
+    }
+
     let docs = document! {
         &tag,
         html! {
             h1 { (&tag) }
             (&search.illust_manga.total)
+            form action="/search" method="get" {
+                input type="text" name="q" placeholder="Keywords..." value=(&tag);
+                select name="mode" {
+                    (make_option("All", "all", mode));
+                    (make_option("Safe", "safe", mode));
+                    (make_option("R-18", "r18", mode));
+                }
+                select name="order" {
+                    (make_option("By Upload Date (Newest)", "date_d", order));
+                    (make_option("By Upload Date (Oldest)", "date", order));
+                    (make_option("By Popularity (All)", "popular_d", order));
+                    (make_option("By Popularity (Male)", "popular_male_d", order));
+                    (make_option("By Popularity (Female)", "popular_female_d", order));
+                }
+                button type="submit" { "Search" }
+            }
             (render_list(&search.illust_manga.data))
             @if search.illust_manga.total > 60 {
                 @let format = format!("/tags/{}/artworks?order={}&mode={}&s_mode={}&p=", tag, order, mode, search_mode);
