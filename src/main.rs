@@ -6,7 +6,7 @@ use api::{
     common::PixivSearchResult,
     error::ApiError,
     search::fetch_search,
-    ugoira::fetch_ugoira_meta,
+    ugoira::{fetch_ugoira_meta, UgoiraFrame},
     user::{fetch_user_illust_ids, fetch_user_illustrations, fetch_user_profile},
 };
 use maud::{html, PreEscaped};
@@ -15,8 +15,7 @@ use rouille::router;
 use rustls::Certificate;
 use std::{
     borrow::Cow,
-    io::{Read, Write},
-    process::{Command, Stdio},
+    io::{Cursor, Read, Seek, Write},
 };
 use std::{io::BufReader, sync::Arc};
 use ureq::{Agent, AgentBuilder};
@@ -137,13 +136,7 @@ fn main() {
                     let destination = percent_encoding::percent_decode(destination)
                         .decode_utf8_lossy()
                         .into_owned();
-                    rouille::Response {
-                        status_code: 301,
-                        headers: vec![("Location".into(), destination.into())],
-                        data: rouille::ResponseBody::empty(),
-                        upgrade: None,
-                    }
-
+                    rouille::Response::redirect_301(destination)
                 } else {
                     rouille::Response::empty_404()
                 }
@@ -210,51 +203,95 @@ fn handle_ugoira(client: &ureq::Agent, id: u32) -> rouille::Response {
         .call()
         .unwrap();
 
-    let reader = ugoira.into_reader();
-    let mut reader = BufReader::with_capacity(0x4000, reader);
+    let reader: Box<dyn Read + Send> = Box::new(ugoira.into_reader());
+    let reader = BufReader::with_capacity(0x4000, reader);
 
-    fn read_img_from_zip<R: Read>(reader: &mut R) -> Vec<u8> {
-        let mut file = zip::read::read_zipfile_from_stream(reader)
-            .unwrap()
-            .unwrap();
-        let mut buffer = vec![];
-        file.read_to_end(&mut buffer).unwrap();
-        buffer
+    struct Opaque<'a> {
+        reader: BufReader<Box<dyn Read + Send>>,
+        file: Option<zip::read::ZipFile<'a>>,
+        writer: Cursor<Vec<u8>>,
+    }
+    let mut opaque = Opaque {
+        reader,
+        file: None,
+        writer: Cursor::new(Vec::with_capacity(0x100000)),
+    };
+
+    unsafe extern "C" fn read(opaque: *mut libc::c_void, ptr: *mut u8, sz: i32) -> i32 {
+        // println!("read: {}", sz);
+        let opaque = opaque as *mut Opaque<'_>;
+        let slice = std::slice::from_raw_parts_mut(ptr, sz as usize);
+        let file = (*opaque).file.as_mut().unwrap();
+        file.read(slice).unwrap() as i32
+    }
+    unsafe extern "C" fn next(opaque: *mut libc::c_void) {
+        // println!("next");
+        let opaque = opaque as *mut Opaque<'_>;
+        let reader = &mut (*opaque).reader;
+        (*opaque).file = Some(
+            zip::read::read_zipfile_from_stream(reader)
+                .unwrap()
+                .unwrap(),
+        );
     }
 
-    let out = format!("/var/www/cunnycon.org/htdocs/{}.mp4", id);
-    let framerate = (1000 / meta.frames[0].delay).to_string();
-
-    let mut ffmpeg = Command::new("ffmpeg")
-        .args(&[
-            "-framerate",
-            &framerate,
-            "-i",
-            "pipe:0",
-            "-c:v",
-            "libx264",
-            "-quality",
-            "best",
-            "-vf",
-            "pad=ceil(iw/2)*2:ceil(ih/2)*2",
-            "-pix_fmt",
-            "yuv420p",
-            "-y",
-            &out,
-        ])
-        .stdin(Stdio::piped())
-        .spawn()
-        .unwrap();
-    let stdin = ffmpeg.stdin.as_mut().unwrap();
-    for delay in meta.frames {
-        /* TODO: Use this eventually */
-        let _ = delay;
-        stdin.write(&read_img_from_zip(&mut reader)).unwrap();
+    unsafe extern "C" fn write(opaque: *mut libc::c_void, ptr: *mut u8, sz: i32) -> i32 {
+        // println!("write: {}", sz);
+        let opaque = opaque as *mut Opaque<'_>;
+        let slice = std::slice::from_raw_parts(ptr, sz as usize);
+        (*opaque).writer.write_all(slice).unwrap();
+        sz
     }
-    ffmpeg.wait().unwrap();
+    unsafe extern "C" fn seek(opaque: *mut libc::c_void, offset: i64, whence: i32) -> i64 {
+        // println!("seek: {} {}", offset, whence);
+        let opaque = opaque as *mut Opaque<'_>;
+        let position = match whence {
+            0 => std::io::SeekFrom::Start(offset as u64),
+            1 => std::io::SeekFrom::Current(offset),
+            2 => std::io::SeekFrom::End(offset),
+            _ => panic!("invalid whence"),
+        };
+        (*opaque).writer.seek(position).unwrap() as i64
+    }
 
-    let url = format!("https://cunnycon.org/{}.mp4", id);
-    rouille::Response::redirect_301(url)
+    let start = std::time::Instant::now();
+
+    extern "C" {
+        fn convert(
+            opaque: *mut libc::c_void,
+            read: unsafe extern "C" fn(*mut libc::c_void, *mut u8, i32) -> i32,
+            next: unsafe extern "C" fn(*mut libc::c_void),
+            write: unsafe extern "C" fn(*mut libc::c_void, *mut u8, i32) -> i32,
+            seek: unsafe extern "C" fn(*mut libc::c_void, i64, i32) -> i64,
+            frames: *const UgoiraFrame,
+            frame_count: usize,
+        ) -> i32;
+    }
+    let ret = unsafe {
+        convert(
+            &mut opaque as *mut Opaque<'_> as *mut libc::c_void,
+            read,
+            next,
+            write,
+            seek,
+            meta.frames.as_ptr(),
+            meta.frames.len(),
+        )
+    };
+    let duration = start.elapsed();
+    println!("{:?}", duration);
+
+    if ret != 0 {
+        return rouille::Response {
+            status_code: 500,
+            headers: vec![],
+            data: rouille::ResponseBody::empty(),
+            upgrade: None,
+        };
+    }
+
+    rouille::Response::from_data("video/mp4", opaque.writer.into_inner())
+        .with_public_cache(365 * 24 * 60 * 60)
 }
 
 fn handle_tags(client: &ureq::Agent, request: &rouille::Request, tag: &str) -> rouille::Response {
