@@ -411,12 +411,7 @@ fn handle_artwork(client: &ureq::Agent, id: u32) -> rouille::Response {
             ul.illust__images {
                 @match artwork.illust_type {
                     2 => {
-                        @let path = format!("/var/www/cunnycon.org/{}.mp4", id);
-                        @let src = if std::path::Path::new(&path).exists() {
-                            format!("https://cunnycon.org/{}.mp4", id)
-                        } else {
-                            format!("/ugoira/{}", id)
-                        };
+                        @let src = format!("/ugoira/{}", id);
                         li {
                             video poster=(&image) src=(&src) autoplay="" loop="" {}
                         }
@@ -442,7 +437,7 @@ fn handle_artwork(client: &ureq::Agent, id: u32) -> rouille::Response {
             meta property="og:image:width" content=(&artwork.width);
             meta property="og:image:height" content=(&artwork.height);
             @if artwork.illust_type == 2 {
-                @let url = format!("https://cunnycon.org/{}.mp4", id);
+                @let url = format!("/ugoira/{}", id);
                 meta property="og:video" content=(&url);
                 meta property="og:video:type" content="video/mp4";
                 meta property="og:video:width" content=(&artwork.width);
