@@ -1,15 +1,14 @@
-namespace
+extern "C"
 {
-
-    extern "C"
-    {
 #include <libavutil/avutil.h>
 #include <libavutil/opt.h>
 #include <libavformat/avformat.h>
 #include <libavcodec/avcodec.h>
 #include <libswscale/swscale.h>
-    }
+}
 
+namespace
+{
     template <typename T>
     struct ScopeGuard
     {

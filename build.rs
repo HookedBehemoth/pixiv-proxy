@@ -17,15 +17,14 @@ fn main() {
     build
         .cpp(true)
         .file("ugoira.cpp")
+        .define("__STDC_CONSTANT_MACROS", None)
         .opt_level(if is_debug { 0 } else { 3 });
 
     if build.get_compiler().is_like_msvc() {
         let ffmpeg_dir = env::var("FFMPEG_DIR").unwrap();
 
         let include_dir = Path::new(&ffmpeg_dir).join("include");
-        build
-            .include(include_dir.display().to_string())
-            .define("__STDC_CONSTANT_MACROS", None);
+        build.include(include_dir.display().to_string());
 
         let lib_dir = Path::new(&ffmpeg_dir).join("lib");
         println!("cargo:rustc-link-search=native={}", lib_dir.display());
@@ -36,7 +35,7 @@ fn main() {
     println!("cargo:rerun-if-changed=ugoira.cpp");
 
     for lib in &["avcodec", "avformat", "avutil", "swresample", "swscale"] {
-        println!("cargo:rustc-link-lib=static={}", lib);
+        println!("cargo:rustc-link-lib={}", lib);
     }
 
     let src: &str = "sass/main.scss";
