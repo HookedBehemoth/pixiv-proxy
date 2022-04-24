@@ -1,28 +1,39 @@
 use glob::glob;
 use std::env;
 use std::fs;
-use std::path::{PathBuf, Path};
+use std::path::{Path, PathBuf};
 
 fn main() {
     let is_debug = env::var_os("PROFILE") == Some("debug".into());
 
-    let ffmpeg_dir = env::var("FFMPEG_DIR").unwrap();
+    let mut build = cc::Build::new();
 
-    env::set_var("CXXFLAGS", "/std:c++latest");
+    if build.get_compiler().is_like_msvc() {
+        env::set_var("CXXFLAGS", "/std:c++17");
+    } else {
+        env::set_var("CXXFLAGS", "-std=c++17");
+    }
 
-    let include_dir = Path::new(&ffmpeg_dir).join("include");
-    cc::Build::new()
+    build
         .cpp(true)
-        .include(include_dir.display().to_string())
-        .define("__STDC_CONSTANT_MACROS", None)
         .file("ugoira.cpp")
-        .opt_level(if is_debug { 0 } else { 3 })
-        .compile("ugoira.a");
-    
-    println!("cargo:rerun-if-changed=ugoira.cpp");
+        .opt_level(if is_debug { 0 } else { 3 });
 
-    let lib_path = Path::new(&ffmpeg_dir).join("lib");
-    println!("cargo:rustc-link-search=native={}", lib_path.display());
+    if build.get_compiler().is_like_msvc() {
+        let ffmpeg_dir = env::var("FFMPEG_DIR").unwrap();
+
+        let include_dir = Path::new(&ffmpeg_dir).join("include");
+        build
+            .include(include_dir.display().to_string())
+            .define("__STDC_CONSTANT_MACROS", None);
+
+        let lib_dir = Path::new(&ffmpeg_dir).join("lib");
+        println!("cargo:rustc-link-search=native={}", lib_dir.display());
+    }
+
+    build.compile("ugoira.a");
+
+    println!("cargo:rerun-if-changed=ugoira.cpp");
 
     for lib in &["avcodec", "avformat", "avutil", "swresample", "swscale"] {
         println!("cargo:rustc-link-lib=static={}", lib);

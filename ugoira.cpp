@@ -18,36 +18,38 @@ namespace
         void discard() { func = nullptr; }
         T func;
     };
-}
 
-struct UgoiraFrame
-{
-    uint16_t delay;
-};
+    struct UgoiraFrame
+    {
+        uint16_t delay;
+    };
 
-/* Stein's binary GCD algorithm */
-/* Find greatest common denumerator without recursion */
-auto gcd(auto a, auto b) {
-    auto r = a - a;
-    while (b != 0) {
-        r = a % b;
-        a = b;
-        b = r;
+    /* Stein's binary GCD algorithm */
+    /* Find greatest common denumerator without recursion */
+    uint16_t gcd(uint16_t a, uint16_t b)
+    {
+        uint16_t r = a - a;
+        while (b != 0)
+        {
+            r = a % b;
+            a = b;
+            b = r;
+        }
+        return a;
     }
-    return a;
-}
 
-float ugoira_cal_fps(const UgoiraFrame *frames, size_t frame_count) {
-    uint16_t re = frames->delay;
-    for (size_t i = 1; i < frame_count; i++)
-        re = gcd(re, frames[i].delay);
-    return FFMIN(1000 / ((float)re), 60.0f);
-}
+    float ugoira_cal_fps(const UgoiraFrame *frames, size_t frame_count)
+    {
+        uint16_t re = frames->delay;
+        for (size_t i = 1; i < frame_count; i++)
+            re = gcd(re, frames[i].delay);
+        return FFMIN(1000 / ((float)re), 60.0f);
+    }
 
-using ReadFuncProto = int (*)(void *opaque, uint8_t *buf, int buf_size);
-using NextFuncProto = void (*)(void *opaque);
-using WriteFuncProto = int (*)(void *opaque, uint8_t *buf, int buf_size);
-using SeekFuncProto = int64_t (*)(void *opaque, int64_t offset, int whence);
+    using ReadFuncProto = int (*)(void *opaque, uint8_t *buf, int buf_size);
+    using NextFuncProto = void (*)(void *opaque);
+    using WriteFuncProto = int (*)(void *opaque, uint8_t *buf, int buf_size);
+    using SeekFuncProto = int64_t (*)(void *opaque, int64_t offset, int whence);
 
 #define CHECK(exp)                                                           \
     do                                                                       \
@@ -60,30 +62,32 @@ using SeekFuncProto = int64_t (*)(void *opaque, int64_t offset, int whence);
         }                                                                    \
     } while (0)
 
-int encode_video(AVFrame *ofr, AVPacket *pkt, AVFormatContext *oc, AVCodecContext *eoc, int64_t *pts, unsigned int stream_index, AVRational time_base)
-{
-    if (ofr != nullptr)
+    int encode_video(AVFrame *ofr, AVPacket *pkt, AVFormatContext *oc, AVCodecContext *eoc, int64_t *pts, unsigned int stream_index, AVRational time_base)
     {
-        ofr->pts = *pts;
-        *pts += av_rescale_q_rnd(1, time_base, oc->streams[stream_index]->time_base, static_cast<AVRounding>(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
-        ofr->pkt_dts = ofr->pts;
-    }
-    auto ret = avcodec_send_frame(eoc, ofr);
-    if (ret < 0 && ret != AVERROR_EOF) {
-        printf("Error: %d: %s:%d: avcodec_send_frame\n", ret, __FILE__, __LINE__);
-        return false;
-    }
+        if (ofr != nullptr)
+        {
+            ofr->pts = *pts;
+            *pts += av_rescale_q_rnd(1, time_base, oc->streams[stream_index]->time_base, static_cast<AVRounding>(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
+            ofr->pkt_dts = ofr->pts;
+        }
+        auto ret = avcodec_send_frame(eoc, ofr);
+        if (ret < 0 && ret != AVERROR_EOF)
+        {
+            printf("Error: %d: %s:%d: avcodec_send_frame\n", ret, __FILE__, __LINE__);
+            return false;
+        }
 
-    ret = avcodec_receive_packet(eoc, pkt);
-    if (ret == AVERROR_EOF || ret == AVERROR(EAGAIN))
-    {
-        return false;
+        ret = avcodec_receive_packet(eoc, pkt);
+        if (ret == AVERROR_EOF || ret == AVERROR(EAGAIN))
+        {
+            return false;
+        }
+
+        pkt->stream_index = stream_index;
+        CHECK(av_write_frame(oc, pkt));
+
+        return true;
     }
-
-    pkt->stream_index = stream_index;
-    CHECK(av_write_frame(oc, pkt));
-
-    return true;
 }
 
 extern "C" int convert(
