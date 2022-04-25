@@ -242,10 +242,7 @@ extern "C" int convert(
         av_packet_unref(pkt);
 
         auto err = (avcodec_receive_frame(eic, ifr));
-        if (err >= 0) {
-            CHECK_RESULT(av_frame_make_writable(ofr));
-            CHECK_RESULT(sws_scale(sws_ctx, (const uint8_t *const *)ifr->data, ifr->linesize, 0, ifr->height, ofr->data, ofr->linesize));
-        } else if (err == AVERROR(EAGAIN)) {
+        if (err == AVERROR(EAGAIN)) {
             continue;
         } else {
             CHECK_RESULT(err);
@@ -253,8 +250,16 @@ extern "C" int convert(
 
         max_de += av_rescale_q_rnd(frames[i].delay, UgoiraTimeBase, os->time_base, static_cast<AVRounding>(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
 
+        auto frame = ifr;
+
+        if (ifr->height != ofr->height || ifr->width != ofr->height || ifr->format != ofr->format) {
+            CHECK_RESULT(av_frame_make_writable(ofr));
+            CHECK_RESULT(sws_scale(sws_ctx, (const uint8_t *const *)ifr->data, ifr->linesize, 0, ifr->height, ofr->data, ofr->linesize));
+            frame = ofr;
+        }
+
         while (pts < max_de) {
-            encode_video(ofr, pkt, oc, eoc, &pts, os->index, time_base);
+            encode_video(frame, pkt, oc, eoc, &pts, os->index, time_base);
         }
 
         if (i == frame_count - 1) {
