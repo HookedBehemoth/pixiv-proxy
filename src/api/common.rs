@@ -11,6 +11,12 @@ pub struct ApiResponse<T> {
 pub struct PixivSearchResult {
     pub id: String,
     pub title: String,
+    #[serde(rename = "userName")]
+    pub user_name: String,
+    /* Note: This appears to always be empty */
+    pub description: String,
+    #[serde(rename = "createDate")]
+    pub create_date: String,
     #[serde(rename = "xRestrict")]
     pub r18: u32,
     #[serde(rename = "pageCount")]

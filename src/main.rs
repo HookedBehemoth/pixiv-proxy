@@ -20,6 +20,7 @@ use std::{
 use std::{io::BufReader, sync::Arc};
 use ureq::{Agent, AgentBuilder};
 
+const BASE_URL: &str = "https://illegalesachen.de";
 const CSS: &str = include_str!(concat!(env!("OUT_DIR"), "/main.css"));
 const FAVICON: &[u8] = include_bytes!("../static/favicon.ico");
 const SVG_PAGE_PATH: &str = "M8,3C8.55,3 9,3.45 9,4L9,9C9,9.55 8.55,10 8,10L3,10C2.45,10 2,9.55 2,9L6,9C7.1,9 8,8.1 8,7L8,3Z M1,1L6,1C6.55,1 7,1.45 7,2L7,7C7,7.55 6.55,8 6,8L1,8C0.45,8 0,7.55 0,7L0,2C0,1.45 0.45,1 1,1Z";
@@ -71,7 +72,7 @@ fn main() {
         AgentBuilder::new()
             .tls_config(tls_config)
             .user_agent(
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:97.0) Gecko/20100101 Firefox/97.0",
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:99.0) Gecko/20100101 Firefox/99.0",
             )
             .redirects(0)
             .build()
@@ -118,6 +119,9 @@ fn main() {
             },
             (GET) (/ugoira/{id: u32}) => {
                 handle_ugoira(&client, id)
+            },
+            (GET) (/rss) => {
+                handle_rss(&client, &request)
             },
             (GET) (/about) => {
                 render_about()
@@ -521,6 +525,92 @@ fn handle_user(
     };
 
     rouille::Response::html(doc.into_string())
+}
+
+fn handle_rss(client: &ureq::Agent, request: &rouille::Request) -> rouille::Response {
+    let query_type = request.get_param("type").unwrap_or("search".to_string());
+    let query_words = request.get_param("q").unwrap_or("".to_string());
+    let query_mode = request.get_param("mode").unwrap_or("all".to_string());
+    let query_search_mode = request
+        .get_param("s_mode")
+        .unwrap_or("s_tag_full".to_string());
+
+    let page = match query_type.as_str() {
+        "author" => {
+            let ids = match fetch_user_illust_ids(client, &query_words) {
+                Ok(ids) => ids,
+                Err(_) => {
+                    return rouille::Response::empty_400();
+                }
+            };
+            let elements = match fetch_user_illustrations(client, &query_words, &ids) {
+                Ok(elements) => elements,
+                Err(_) => {
+                    return rouille::Response::empty_400();
+                }
+            };
+
+            let mut elements: Vec<(u32, PixivSearchResult)> = elements.works.into_iter().collect();
+            elements.sort_unstable_by_key(|s| s.0);
+            elements.reverse();
+            elements.into_iter().map(|(_, s)| s).collect()
+        }
+        "search" | _ => {
+            let search = match fetch_search(
+                client,
+                &query_words,
+                "date_d",
+                &query_mode,
+                "1",
+                &query_search_mode,
+            ) {
+                Ok(search) => search,
+                Err(_) => {
+                    return rouille::Response::empty_400();
+                }
+            };
+            search.illust_manga.data
+        }
+    };
+
+    let items: Vec<rss::Item> = page
+        .iter()
+        .map(|s| {
+            let enclosure = rss::EnclosureBuilder::default()
+                .url(format!("{}{}", BASE_URL, util::image_to_proxy(&s.url)))
+                .mime_type("image/jpg")
+                .build();
+            rss::ItemBuilder::default()
+                .title(Some(s.title.clone()))
+                .link(Some(format!("{}/artworks/{}", BASE_URL, s.id)))
+                .description(Some(s.description.clone()))
+                .author(Some(s.user_name.clone()))
+                .pub_date(Some(s.create_date.clone()))
+                .enclosure(Some(enclosure))
+                .build()
+        })
+        .collect();
+
+    let link = format!("{}{}", BASE_URL, request.url());
+
+    let content = rss::ChannelBuilder::default()
+        .title(query_words)
+        .link(link)
+        .items(items)
+        .description("Pixiv RSS")
+        .build();
+
+    let content = content.to_string();
+
+    rouille::Response {
+        status_code: 200,
+        headers: vec![(
+            "Content-Type".into(),
+            "application/rss+xml; charset=utf-8".into(),
+        )],
+        data: rouille::ResponseBody::from_string(content),
+        upgrade: None,
+    }
 }
 
 fn render_list(list: &[PixivSearchResult]) -> maud::Markup {
