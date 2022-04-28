@@ -581,17 +581,48 @@ fn handle_rss(client: &ureq::Agent, request: &rouille::Request) -> rouille::Resp
     let items: Vec<rss::Item> = page
         .iter()
         .map(|s| {
-            let enclosure = rss::EnclosureBuilder::default()
-                .url(format!("{}{}", BASE_URL, util::image_to_proxy(&s.url)))
-                .mime_type("image/jpg")
+            let link = format!("{}/artworks/{}", BASE_URL, s.id);
+            let guid = rss::GuidBuilder::default()
+                .value(link.clone())
+                .permalink(true)
                 .build();
+            let date = chrono::DateTime::parse_from_rfc3339(&s.update_date);
+            let description = match date {
+                Ok(date) => {
+                    let img_base = format!(
+                        "{}/imageproxy/img-master/img/{}/{}",
+                        BASE_URL,
+                        date.format("%Y/%m/%d/%H/%M/%S"),
+                        s.id
+                    );
+                    html!(
+                        h1 { (&s.title) }
+                        p { (date.format("%Y-%m-%d %H:%M:%S")) }
+                        @match s.illust_type {
+                            2 => {
+                                img src=(format!("{}_master1200.jpg", img_base));
+                            }
+                            _ => {
+                                @for i in 0..s.page_count {
+                                    img src=(&format!("{}_p{}_master1200.jpg", img_base, i));
+                                }
+                            }
+                        }
+                    )
+                }
+                Err(_) => {
+                    html!(
+                        img src=(&s.url);
+                    )
+                }
+            };
             rss::ItemBuilder::default()
                 .title(Some(s.title.clone()))
-                .link(Some(format!("{}/artworks/{}", BASE_URL, s.id)))
-                .description(Some(s.description.clone()))
+                .link(Some(link.clone()))
+                .guid(Some(guid))
+                .description(Some(description.into_string()))
                 .author(Some(s.user_name.clone()))
                 .pub_date(Some(s.create_date.clone()))
-                .enclosure(Some(enclosure))
                 .build()
         })
         .collect();
