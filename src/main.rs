@@ -627,7 +627,7 @@ fn handle_rss(client: &ureq::Agent, request: &rouille::Request) -> rouille::Resp
         })
         .collect();
 
-    let link = format!("{}{}", BASE_URL, request.url());
+    let link = format!("{}{}", BASE_URL, request.raw_url());
 
     let content = rss::ChannelBuilder::default()
         .title(query_words)
