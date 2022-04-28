@@ -9,7 +9,7 @@ extern "C" {
 namespace {
     template <typename T>
     struct ScopeGuard {
-        ScopeGuard(T func) : func(std::move(func)), active(true) {}
+        ScopeGuard(T func) : func(func), active(true) {}
         ~ScopeGuard() {
             if (active)
                 func();
