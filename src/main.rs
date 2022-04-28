@@ -356,6 +356,11 @@ fn render_search(
                     (make_option("By Popularity (Male)", "popular_male_d", order));
                     (make_option("By Popularity (Female)", "popular_female_d", order));
                 }
+                select name="s_mode" {
+                    (make_option("Tags (partial match)", "s_tag", search_mode))
+                    (make_option("Tags (perfect match)", "s_tag_full", search_mode))
+                    (make_option("Title, Caption", "s_tc", search_mode))
+                }
                 button type="submit" { "Search" }
             }
             (render_list(&search.illust_manga.data))
