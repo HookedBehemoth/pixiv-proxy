@@ -142,7 +142,7 @@ fn main() {
                         .into_owned();
                     rouille::Response::redirect_301(destination)
                 } else {
-                    rouille::Response::empty_404()
+                    render_error(404, "Endpoint not found!")
                 }
             }
         )
