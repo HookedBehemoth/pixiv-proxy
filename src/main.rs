@@ -395,7 +395,7 @@ fn handle_artwork(client: &ureq::Agent, id: u32) -> rouille::Response {
             p.illust__author { a href=(&link) { (&artwork.user_name) } }
             /* Description */
             @if !artwork.description.is_empty() {
-                p { noscript { (PreEscaped(&artwork.description)) } }
+                p { (PreEscaped(&artwork.description)) }
             }
             /* Tags */
             (artwork.tags)
