@@ -21,7 +21,7 @@ impl maud::Render for Tags {
         maud::html!(
             ul class="tags" {
                 @for tag in self.tags.iter() {
-                    @let link = format!("/tags/{}/artworks", tag.tag);
+                    @let link = format!("/tags/{}/artworks", percent_encoding::utf8_percent_encode(&tag.tag, percent_encoding::NON_ALPHANUMERIC));
                     li {
                         a href=(&link) { (&tag.tag) }
                         @if let Some(ref translation) = tag.translation {

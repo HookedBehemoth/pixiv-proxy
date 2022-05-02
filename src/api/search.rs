@@ -35,7 +35,8 @@ pub fn fetch_search(
     //     ("type", "all"),
     //     ("lang", "en"),
     // ];
-    let url = format!("https://www.pixiv.net/ajax/search/artworks/{}?word={}&order={}&mode={}&p={}&s_mode={}&type=all&lang=en", query, query, order, mode, page, search_mode);
+    let query = percent_encoding::utf8_percent_encode(query, percent_encoding::NON_ALPHANUMERIC);
+    let url = format!("https://www.pixiv.net/ajax/search/artworks/{}?word={}&order={}&mode={}&p={}&s_mode={}&type=all&lang=en", &query, &query, order, mode, page, search_mode);
 
     fetch(client, &url)
 }
