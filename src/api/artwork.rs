@@ -7,25 +7,17 @@ pub struct PixivUrls {
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all(deserialize = "camelCase", serialize = "snake_case"))]
 pub struct Artwork {
-    #[serde(rename = "illustType")]
     pub illust_type: u8,
-    #[serde(rename = "illustTitle")]
     pub illust_title: String,
-    #[serde(rename = "pageCount")]
     pub page_count: u32,
-    #[serde(rename = "likeCount")]
     pub like_count: u32,
-    #[serde(rename = "bookmarkCount")]
     pub bookmark_count: u32,
-    #[serde(rename = "viewCount")]
     pub view_count: u32,
-    #[serde(rename = "userName")]
     pub user_name: String,
-    #[serde(rename = "userId")]
     pub user_id: String,
     pub description: String,
-    #[serde(rename = "createDate")]
     pub create_date: String,
     pub width: u32,
     pub height: u32,

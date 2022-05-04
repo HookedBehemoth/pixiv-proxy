@@ -48,11 +48,10 @@ pub fn fetch_user_illustrations(
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all(deserialize = "camelCase", serialize = "snake_case"))]
 pub struct PixivUser {
     pub name: String,
-    #[serde(rename = "imageBig")]
     pub image_big: String,
-    #[serde(rename = "commentHtml")]
     pub comment_html: String,
 }
 

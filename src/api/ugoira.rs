@@ -3,9 +3,9 @@ use serde::Deserialize;
 use super::{error::ApiError, fetch::fetch};
 
 #[derive(Deserialize)]
+#[serde(rename_all(deserialize = "camelCase", serialize = "snake_case"))]
 pub struct UgoiraMeta {
     pub src: String,
-    #[serde(rename = "originalSrc")]
     pub original_src: String,
     pub frames: Vec<UgoiraFrame>,
 }
