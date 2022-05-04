@@ -141,6 +141,13 @@ fn main() {
                         .decode_utf8_lossy()
                         .into_owned();
                     rouille::Response::redirect_301(destination)
+                } else if url == "member_illust.php" {
+                    let id = match request.get_param("illust_id") {
+                        Some(id) => id,
+                        None => return render_error(401, "No illust id"),
+                    };
+                    let destination = format!("/artworks/{}", id);
+                    rouille::Response::redirect_301(destination)
                 } else {
                     render_error(404, "Endpoint not found!")
                 }
