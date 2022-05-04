@@ -512,7 +512,7 @@ fn handle_user(
             header.author {
                 img.logo src=(&image) alt=(&user.name) width="170";
                 h1 { (&user.name) }
-                p { noscript { (PreEscaped(&user.comment_html)) } }
+                p { (PreEscaped(&user.comment_html)) }
             }
             section {
                 (render_list(&elements))
