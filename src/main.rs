@@ -87,29 +87,29 @@ fn main() {
                 render_search(&client, "けものフレンズ", "popular_d", "safe", 1, "s_tag_full")
             },
             (GET) (/en/tags/{tag: String}/artworks) => {
-                handle_tags(&client, &request, &tag)
+                handle_tags(&client, request, &tag)
             },
             (GET) (/tags/{tag: String}/artworks) => {
-                handle_tags(&client, &request, &tag)
+                handle_tags(&client, request, &tag)
             },
             (GET) (/search) => {
                 let term = match request.get_param("q") {
                     Some(term) => term,
                     None => return render_error(401, "No search term"),
                 };
-                handle_tags(&client, &request, &term)
+                handle_tags(&client, request, &term)
             },
             (GET) (/en/users/{id: String}/artworks) => {
-                handle_user(&client, &request, &id)
+                handle_user(&client, request, &id)
             },
             (GET) (/users/{id: String}/artworks) => {
-                handle_user(&client, &request, &id)
+                handle_user(&client, request, &id)
             },
             (GET) (/en/users/{id: String}) => {
-                handle_user(&client, &request, &id)
+                handle_user(&client, request, &id)
             },
             (GET) (/users/{id: String}) => {
-                handle_user(&client, &request, &id)
+                handle_user(&client, request, &id)
             },
             (GET) (/en/artworks/{id: u32}) => {
                 handle_artwork(&client, id)
@@ -121,7 +121,7 @@ fn main() {
                 handle_ugoira(&client, id)
             },
             (GET) (/rss) => {
-                handle_rss(&client, &request)
+                handle_rss(&client, request)
             },
             (GET) (/about) => {
                 render_about()
@@ -305,16 +305,30 @@ fn handle_ugoira(client: &ureq::Agent, id: u32) -> rouille::Response {
         .with_public_cache(365 * 24 * 60 * 60)
 }
 
+macro_rules! get_param_or_str {
+    ($request:expr, $name:expr, $default:expr) => {{
+        let option = $request.get_param($name);
+        match option {
+            Some(value) => value,
+            None => $default.to_string(),
+        }
+    }};
+}
+macro_rules! get_param_or_num {
+    ($request:expr, $name:expr, $default:expr) => {{
+        let option = $request.get_param($name);
+        match option {
+            Some(value) => value.parse::<u32>().unwrap_or($default),
+            None => $default,
+        }
+    }};
+}
+
 fn handle_tags(client: &ureq::Agent, request: &rouille::Request, tag: &str) -> rouille::Response {
-    let order = request.get_param("order").unwrap_or("date_d".to_string());
-    let mode = request.get_param("mode").unwrap_or("all".to_string());
-    let page = request
-        .get_param("p")
-        .map(|p| p.parse::<u32>().unwrap_or(1))
-        .unwrap_or(1);
-    let search_mode = request
-        .get_param("s_mode")
-        .unwrap_or("s_tag_full".to_string());
+    let order = get_param_or_str!(request, "order", "date_d");
+    let mode = get_param_or_str!(request, "mode", "all");
+    let page = get_param_or_num!(request, "p", 1);
+    let search_mode = get_param_or_str!(request, "s_mode", "s_tag_full");
 
     render_search(client, tag, &order, &mode, page, &search_mode)
 }
@@ -538,12 +552,10 @@ fn handle_user(
 }
 
 fn handle_rss(client: &ureq::Agent, request: &rouille::Request) -> rouille::Response {
-    let query_type = request.get_param("type").unwrap_or("search".to_string());
-    let query_words = request.get_param("q").unwrap_or("".to_string());
-    let query_mode = request.get_param("mode").unwrap_or("all".to_string());
-    let query_search_mode = request
-        .get_param("s_mode")
-        .unwrap_or("s_tag_full".to_string());
+    let query_type = get_param_or_str!(request, "type", "search");
+    let query_words = get_param_or_str!(request, "q", "");
+    let query_mode = get_param_or_str!(request, "mode", "all");
+    let query_search_mode = get_param_or_str!(request, "s_mode", "s_tag_full");
 
     let page = match query_type.as_str() {
         "author" => {
@@ -560,7 +572,7 @@ fn handle_rss(client: &ureq::Agent, request: &rouille::Request) -> rouille::Resp
                 }
             }
         }
-        "search" | _ => {
+        _ => {
             let search = match fetch_search(
                 client,
                 &query_words,
@@ -618,7 +630,7 @@ fn handle_rss(client: &ureq::Agent, request: &rouille::Request) -> rouille::Resp
             };
             rss::ItemBuilder::default()
                 .title(Some(s.title.clone()))
-                .link(Some(link.clone()))
+                .link(Some(link))
                 .guid(Some(guid))
                 .description(Some(description.into_string()))
                 .author(Some(s.user_name.clone()))
@@ -627,11 +639,9 @@ fn handle_rss(client: &ureq::Agent, request: &rouille::Request) -> rouille::Resp
         })
         .collect();
 
-    let link = format!("{}{}", BASE_URL, request.raw_url());
-
     let content = rss::ChannelBuilder::default()
         .title(query_words)
-        .link(link)
+        .link(BASE_URL)
         .items(items)
         .description("Pixiv RSS")
         .build();
