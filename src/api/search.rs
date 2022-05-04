@@ -8,10 +8,9 @@ pub struct PixivArray<T> {
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all(deserialize = "camelCase", serialize = "snake_case"))]
 pub struct PixivSearch {
-    #[serde(rename = "illustManga")]
     pub illust_manga: PixivArray<PixivSearchResult>,
-    // #[serde(rename = "relatedTags")]
     // pub related_tags: Vec<String>,
 }
 
