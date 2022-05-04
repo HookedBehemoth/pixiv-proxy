@@ -26,7 +26,7 @@ pub fn fetch_user_illust_ids(client: &ureq::Agent, user_id: &str) -> Result<Vec<
 }
 
 #[derive(Deserialize)]
-pub struct PixivWorks {
+struct PixivWorks {
     pub works: HashMap<u32, PixivSearchResult>,
 }
 
@@ -35,16 +35,23 @@ pub fn fetch_user_illustrations(
     client: &ureq::Agent,
     user_id: &str,
     ids: &[u32],
-) -> Result<PixivWorks, ApiError> {
+) -> Result<Vec<PixivSearchResult>, ApiError> {
     let url = format!("https://www.pixiv.net/ajax/user/{}/profile/illusts?{}&work_category=illust&is_first_page=0&lang=en", 
         user_id,
-        ids.into_iter()
+        ids.iter()
             .map(|id| format!("ids[]={}", id))
             .collect::<Vec<String>>()
             .join("&")
     );
 
-    fetch(client, &url)
+    let elements: PixivWorks = fetch(client, &url)?;
+
+    let mut elements: Vec<(u32, PixivSearchResult)> = elements.works.into_iter().collect();
+    elements.sort_unstable_by_key(|s| s.0);
+    elements.reverse();
+    let elements = elements.into_iter().map(|(_, s)| s).collect();
+
+    Ok(elements)
 }
 
 #[derive(Deserialize)]

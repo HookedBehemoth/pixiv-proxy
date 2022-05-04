@@ -494,11 +494,6 @@ fn handle_user(
         }
     };
 
-    let mut elements: Vec<(u32, PixivSearchResult)> = elements.works.into_iter().collect();
-    elements.sort_unstable_by_key(|s| s.0);
-    elements.reverse();
-    let elements: Vec<PixivSearchResult> = elements.into_iter().map(|(_, s)| s).collect();
-
     let image = util::image_to_proxy(&user.image_big);
 
     let doc = document! {
@@ -548,17 +543,12 @@ fn handle_rss(client: &ureq::Agent, request: &rouille::Request) -> rouille::Resp
                     return rouille::Response::empty_400();
                 }
             };
-            let elements = match fetch_user_illustrations(client, &query_words, &ids) {
+            match fetch_user_illustrations(client, &query_words, &ids) {
                 Ok(elements) => elements,
                 Err(_) => {
                     return rouille::Response::empty_400();
                 }
-            };
-
-            let mut elements: Vec<(u32, PixivSearchResult)> = elements.works.into_iter().collect();
-            elements.sort_unstable_by_key(|s| s.0);
-            elements.reverse();
-            elements.into_iter().map(|(_, s)| s).collect()
+            }
         }
         "search" | _ => {
             let search = match fetch_search(
