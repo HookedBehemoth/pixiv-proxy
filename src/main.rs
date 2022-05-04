@@ -444,21 +444,24 @@ fn handle_artwork(client: &ureq::Agent, id: u32) -> rouille::Response {
             }
         },
         html! {
-            meta property="og:title" content=(&artwork.illust_title);
-            meta property="og:type" content="article";
+            meta name="twitter:title" content=(&artwork.illust_title);
+            meta name="twitter:creator" content=(&artwork.user_name);
+            meta name="twitter:image" content=(image);
+            @match artwork.illust_type {
+                2 => {
+                    meta name="twitter:card" content="player";
+                    @let url = format!("/ugoira/{}", id);
+                    meta name="twitter:player:stream" content=(&url);
+                    meta name="twitter:player:stream:content_type" content="video/mp4";
+                    meta name="twitter:player:width" content=(artwork.width);
+                    meta name="twitter:player:height" content=(artwork.height);
+                },
+                _ => {
+                    meta name="twitter:card" content="summary_large_image";
+                }
+            }
             @let description = util::truncate(&artwork.description, 200);
             meta property="og:description" content=(&description);
-            meta property="og:url" content=(&format!("/artworks/{}", id));
-            meta property="og:image" content=(&image);
-            meta property="og:image:width" content=(&artwork.width);
-            meta property="og:image:height" content=(&artwork.height);
-            @if artwork.illust_type == 2 {
-                @let url = format!("/ugoira/{}", id);
-                meta property="og:video" content=(&url);
-                meta property="og:video:type" content="video/mp4";
-                meta property="og:video:width" content=(&artwork.width);
-                meta property="og:video:height" content=(&artwork.height);
-            }
         }
     };
 
