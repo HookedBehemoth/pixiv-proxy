@@ -1,4 +1,7 @@
 mod api;
+mod imageproxy;
+mod redirect;
+mod ugoira;
 mod util;
 
 use api::{
@@ -6,18 +9,16 @@ use api::{
     common::PixivSearchResult,
     error::ApiError,
     search::fetch_search,
-    ugoira::{fetch_ugoira_meta, UgoiraFrame},
     user::{fetch_user_illust_ids, fetch_user_illustrations, fetch_user_profile},
 };
+use imageproxy::handle_imageproxy;
 use maud::{html, PreEscaped};
+use redirect::{redirect_jump, redirect_legacy_illust};
 use rouille::router;
+use ugoira::handle_ugoira;
 
 use rustls::Certificate;
-use std::{
-    borrow::Cow,
-    io::{Cursor, Read, Seek, Write},
-};
-use std::{io::BufReader, sync::Arc};
+use std::sync::Arc;
 use ureq::{Agent, AgentBuilder};
 
 const BASE_URL: &str = "https://illegalesachen.de";
@@ -159,23 +160,13 @@ fn main() {
                 let url = request.url();
                 if url.starts_with("/imageproxy/") {
                     handle_imageproxy(&client, &url)
-                        .with_public_cache(365 * 24 * 60 * 60)
                 } else if url == "/favicon.ico" {
                     rouille::Response::from_data("image/x-icon", FAVICON)
                         .with_public_cache(365 * 24 * 60 * 60)
                 } else if url == "/jump.php" {
-                    let destination = request.raw_query_string().as_bytes();
-                    let destination = percent_encoding::percent_decode(destination)
-                        .decode_utf8_lossy()
-                        .into_owned();
-                    rouille::Response::redirect_301(destination)
+                    redirect_jump(request)
                 } else if url == "member_illust.php" {
-                    let id = match request.get_param("illust_id") {
-                        Some(id) => id,
-                        None => return render_error(401, "No illust id"),
-                    };
-                    let destination = format!("/artworks/{}", id);
-                    rouille::Response::redirect_301(destination)
+                    redirect_legacy_illust(request)
                 } else {
                     render_error(404, "Endpoint not found!")
                 }
@@ -193,155 +184,6 @@ macro_rules! try_api {
             }
         }
     };
-}
-
-fn handle_imageproxy(client: &ureq::Agent, path: &str) -> rouille::Response {
-    let url = format!("https://i.pximg.net/{}", &path[12..]);
-    let response = client
-        .get(&url)
-        .set("Referer", "https://pixiv.net/")
-        .set(
-            "Cookie",
-            &std::env::args().nth(1).expect("PIXIV_COOKIE must be set"),
-        )
-        .call()
-        .unwrap();
-
-    let headers = response
-        .headers_names()
-        .iter()
-        .filter(|&s| s != "cookies")
-        .map(|s| {
-            (
-                Cow::from(s.clone()),
-                Cow::from(response.header(s).unwrap_or("").to_string()),
-            )
-        })
-        .collect();
-
-    let reader = match response
-        .header("Content-Length")
-        .map(|s| s.parse::<usize>())
-    {
-        Some(Ok(len)) => rouille::ResponseBody::from_reader_and_size(response.into_reader(), len),
-        _ => rouille::ResponseBody::from_reader(response.into_reader()),
-    };
-
-    rouille::Response {
-        status_code: 200,
-        headers: headers,
-        data: reader,
-        upgrade: None,
-    }
-}
-
-fn handle_ugoira(client: &ureq::Agent, id: u32) -> rouille::Response {
-    let meta = match fetch_ugoira_meta(client, id) {
-        Ok(meta) => meta,
-        Err(_) => {
-            println!("Error fetching ugoira meta: {}", id);
-            return rouille::Response::empty_404();
-        }
-    };
-    let ugoira = client
-        .get(&meta.original_src)
-        .set("Referer", "https://pixiv.net/")
-        .set(
-            "Cookie",
-            &std::env::args().nth(1).expect("PIXIV_COOKIE must be set"),
-        )
-        .call()
-        .unwrap();
-
-    let reader: Box<dyn Read + Send> = Box::new(ugoira.into_reader());
-    let reader = BufReader::with_capacity(0x4000, reader);
-
-    struct Opaque<'a> {
-        reader: BufReader<Box<dyn Read + Send>>,
-        file: Option<zip::read::ZipFile<'a>>,
-        writer: Cursor<Vec<u8>>,
-    }
-    let mut opaque = Opaque {
-        reader,
-        file: None,
-        writer: Cursor::new(Vec::with_capacity(0x100000)),
-    };
-
-    unsafe extern "C" fn read(opaque: *mut libc::c_void, ptr: *mut u8, sz: i32) -> i32 {
-        // println!("read: {}", sz);
-        let opaque = opaque as *mut Opaque<'_>;
-        let slice = std::slice::from_raw_parts_mut(ptr, sz as usize);
-        let file = (*opaque).file.as_mut().unwrap();
-        file.read(slice).unwrap() as i32
-    }
-    unsafe extern "C" fn next(opaque: *mut libc::c_void) {
-        // println!("next");
-        let opaque = opaque as *mut Opaque<'_>;
-        let reader = &mut (*opaque).reader;
-        (*opaque).file = Some(
-            zip::read::read_zipfile_from_stream(reader)
-                .unwrap()
-                .unwrap(),
-        );
-    }
-
-    unsafe extern "C" fn write(opaque: *mut libc::c_void, ptr: *mut u8, sz: i32) -> i32 {
-        // println!("write: {}", sz);
-        let opaque = opaque as *mut Opaque<'_>;
-        let slice = std::slice::from_raw_parts(ptr, sz as usize);
-        (*opaque).writer.write_all(slice).unwrap();
-        sz
-    }
-    unsafe extern "C" fn seek(opaque: *mut libc::c_void, offset: i64, whence: i32) -> i64 {
-        // println!("seek: {} {}", offset, whence);
-        let opaque = opaque as *mut Opaque<'_>;
-        let position = match whence {
-            0 => std::io::SeekFrom::Start(offset as u64),
-            1 => std::io::SeekFrom::Current(offset),
-            2 => std::io::SeekFrom::End(offset),
-            _ => panic!("invalid whence"),
-        };
-        (*opaque).writer.seek(position).unwrap() as i64
-    }
-
-    let start = std::time::Instant::now();
-
-    extern "C" {
-        fn convert(
-            opaque: *mut libc::c_void,
-            read: unsafe extern "C" fn(*mut libc::c_void, *mut u8, i32) -> i32,
-            next: unsafe extern "C" fn(*mut libc::c_void),
-            write: unsafe extern "C" fn(*mut libc::c_void, *mut u8, i32) -> i32,
-            seek: unsafe extern "C" fn(*mut libc::c_void, i64, i32) -> i64,
-            frames: *const UgoiraFrame,
-            frame_count: usize,
-        ) -> i32;
-    }
-    let ret = unsafe {
-        convert(
-            &mut opaque as *mut Opaque<'_> as *mut libc::c_void,
-            read,
-            next,
-            write,
-            seek,
-            meta.frames.as_ptr(),
-            meta.frames.len(),
-        )
-    };
-    let duration = start.elapsed();
-    println!("{:?}", duration);
-
-    if ret != 0 {
-        return rouille::Response {
-            status_code: 500,
-            headers: vec![],
-            data: rouille::ResponseBody::empty(),
-            upgrade: None,
-        };
-    }
-
-    rouille::Response::from_data("video/mp4", opaque.writer.into_inner())
-        .with_public_cache(365 * 24 * 60 * 60)
 }
 
 macro_rules! get_param_or_str {
