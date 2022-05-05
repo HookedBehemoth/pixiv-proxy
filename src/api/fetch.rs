@@ -9,15 +9,7 @@ where
         (200..300).contains(&status)
     }
 
-    let response = match client
-        .get(url)
-        .set("Referer", "https://pixiv.net/")
-        .set(
-            "Cookie",
-            &std::env::args().nth(1).expect("PIXIV_COOKIE must be set"),
-        )
-        .call()
-    {
+    let response = match client.get(url).call() {
         Ok(response) => {
             if !is_success(response.status()) {
                 return Err(ApiError::External(

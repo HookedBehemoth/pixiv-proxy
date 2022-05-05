@@ -53,7 +53,9 @@ macro_rules! document {
 }
 
 fn main() {
+    /* Construct http client */
     let client: Agent = {
+        /* Load tls certificate */
         let certs = rustls_native_certs::load_native_certs().expect("Could not load certs!");
 
         let mut root_store = rustls::RootCertStore::empty();
@@ -69,11 +71,37 @@ fn main() {
                 .with_no_client_auth(),
         );
 
+        /* Add default headers */
+        struct PixivDefaultHeaders {
+            referer: String,
+            cookie: String,
+        }
+
+        impl ureq::Middleware for PixivDefaultHeaders {
+            fn handle(
+                &self,
+                request: ureq::Request,
+                next: ureq::MiddlewareNext,
+            ) -> Result<ureq::Response, ureq::Error> {
+                let request = request
+                    .set("Referer", &self.referer)
+                    .set("Cookie", &self.cookie);
+                next.handle(request)
+            }
+        }
+
+        let middleware = PixivDefaultHeaders {
+            referer: "https://pixiv.net/".to_string(),
+            cookie: std::env::args().nth(1).expect("PIXIV_COOKIE must be set"),
+        };
+
+        /* Build client */
         AgentBuilder::new()
             .tls_config(tls_config)
             .user_agent(
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:99.0) Gecko/20100101 Firefox/99.0",
             )
+            .middleware(middleware)
             .redirects(0)
             .build()
     };
