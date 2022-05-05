@@ -184,6 +184,17 @@ fn main() {
     });
 }
 
+macro_rules! try_api {
+    ($query:expr) => {
+        match ($query) {
+            Ok(res) => res,
+            Err(err) => {
+                return render_api_error(&err);
+            }
+        }
+    };
+}
+
 fn handle_imageproxy(client: &ureq::Agent, path: &str) -> rouille::Response {
     let url = format!("https://i.pximg.net/{}", &path[12..]);
     let response = client
@@ -369,12 +380,14 @@ fn render_search(
     page: u32,
     search_mode: &str,
 ) -> rouille::Response {
-    let search = match fetch_search(client, tag, order, mode, &page.to_string(), search_mode) {
-        Ok(search) => search,
-        Err(err) => {
-            return render_api_error(&err);
-        }
-    };
+    let search = try_api!(fetch_search(
+        client,
+        tag,
+        order,
+        mode,
+        &page.to_string(),
+        search_mode
+    ));
 
     fn make_option(name: &str, value: &str, mode: &str) -> maud::Markup {
         html! {
@@ -424,12 +437,7 @@ fn render_search(
 }
 
 fn handle_artwork(client: &ureq::Agent, id: u32) -> rouille::Response {
-    let artwork = match fetch_artwork(client, &id.to_string()) {
-        Ok(artwork) => artwork,
-        Err(err) => {
-            return render_api_error(&err);
-        }
-    };
+    let artwork = try_api!(fetch_artwork(client, &id.to_string()));
 
     let image = util::image_to_proxy(&artwork.urls.original);
     let date = chrono::DateTime::parse_from_rfc3339(&artwork.create_date);
@@ -515,36 +523,16 @@ fn handle_user(
     request: &rouille::Request,
     user_id: &str,
 ) -> rouille::Response {
-    let user = match fetch_user_profile(client, user_id) {
-        Ok(user) => user,
-        Err(err) => {
-            return render_api_error(&err);
-        }
-    };
+    let user = try_api!(fetch_user_profile(client, user_id));
+    let ids = try_api!(fetch_user_illust_ids(client, user_id));
 
-    let page = request
-        .get_param("p")
-        .map(|p| p.parse::<u32>().unwrap_or(1))
-        .unwrap_or(1);
-
-    let ids = match fetch_user_illust_ids(client, user_id) {
-        Ok(ids) => ids,
-        Err(err) => {
-            return render_api_error(&err);
-        }
-    };
-
+    let page = get_param_or_num!(request, "p", 1);
     let count = ids.len();
     let start = (page - 1) * 60;
     let end = std::cmp::min(start + 60, count as u32);
     let slice = &ids[start as usize..end as usize];
 
-    let elements = match fetch_user_illustrations(client, user_id, slice) {
-        Ok(elements) => elements,
-        Err(err) => {
-            return render_api_error(&err);
-        }
-    };
+    let elements = try_api!(fetch_user_illustrations(client, user_id, slice));
 
     let image = util::image_to_proxy(&user.image_big);
 
@@ -587,33 +575,18 @@ fn handle_rss(client: &ureq::Agent, request: &rouille::Request) -> rouille::Resp
 
     let page = match query_type.as_str() {
         "author" => {
-            let ids = match fetch_user_illust_ids(client, &query_words) {
-                Ok(ids) => ids,
-                Err(_) => {
-                    return rouille::Response::empty_400();
-                }
-            };
-            match fetch_user_illustrations(client, &query_words, &ids) {
-                Ok(elements) => elements,
-                Err(_) => {
-                    return rouille::Response::empty_400();
-                }
-            }
+            let ids = try_api!(fetch_user_illust_ids(client, &query_words));
+            try_api!(fetch_user_illustrations(client, &query_words, &ids))
         }
         _ => {
-            let search = match fetch_search(
+            let search = try_api!(fetch_search(
                 client,
                 &query_words,
                 "date_d",
                 &query_mode,
                 "1",
                 &query_search_mode,
-            ) {
-                Ok(search) => search,
-                Err(_) => {
-                    return rouille::Response::empty_400();
-                }
-            };
+            ));
             search.illust_manga.data
         }
     };
