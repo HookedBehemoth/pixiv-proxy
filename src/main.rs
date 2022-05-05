@@ -165,7 +165,7 @@ fn main() {
                         .with_public_cache(365 * 24 * 60 * 60)
                 } else if url == "/jump.php" {
                     redirect_jump(request)
-                } else if url == "member_illust.php" {
+                } else if url == "/member_illust.php" {
                     redirect_legacy_illust(request)
                 } else {
                     render_error(404, "Endpoint not found!")
