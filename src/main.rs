@@ -625,7 +625,12 @@ fn handle_rss(client: &ureq::Agent, request: &rouille::Request) -> rouille::Resp
                 }
                 Err(_) => {
                     html!(
-                        img src=(&s.url);
+                        @let url = format!(
+                            "{}{}",
+                            BASE_URL,
+                            util::image_to_proxy(&s.url)
+                        );
+                        img src=(url) width="250" height="250";
                     )
                 }
             };
