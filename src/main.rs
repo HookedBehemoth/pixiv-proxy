@@ -22,6 +22,7 @@ const BASE_URL: &str = "https://illegalesachen.de";
 const CSS: &str = include_str!(concat!(env!("OUT_DIR"), "/main.css"));
 const FAVICON: &[u8] = include_bytes!("../static/favicon.ico");
 const SVG_PAGE_PATH: &str = "M8,3C8.55,3 9,3.45 9,4L9,9C9,9.55 8.55,10 8,10L3,10C2.45,10 2,9.55 2,9L6,9C7.1,9 8,8.1 8,7L8,3Z M1,1L6,1C6.55,1 7,1.45 7,2L7,7C7,7.55 6.55,8 6,8L1,8C0.45,8 0,7.55 0,7L0,2C0,1.45 0.45,1 1,1Z";
+const SVG_PLAY_PATH: &str = "M 57.5 37 C 35 24, 35 24, 35 50 S 35 76, 57.5 63 S 80 50, 57.5 37";
 const SVG_LIKE_PATH: &str = "M2 6a2 2 0 110-4 2 2 0 010 4zm8 0a2 2 0 110-4 2 2 0 010 4zM2.11 8.89a1 1 0 011.415-1.415 3.5 3.5 0 004.95 0 1 1 0 011.414 1.414 5.5 5.5 0 01-7.778 0z";
 const SVG_HEART_PATH: &str = "M9,0.75 C10.5,0.75 12,2 12,3.75 C12,6.5 10,9.25 6.25,11.5L6.25,11.5 C6,11.5 6,11.5 5.75,11.5C2,9.25 0,6.75 0,3.75 C1.1324993e-16,2 1.5,0.75 3,0.75C4,0.75 5.25,1.5 6,2.75 C6.75,1.5 9,0.75 9,0.75 Z";
 const SVG_EYE_OUTER_PATH: &str =
@@ -197,6 +198,7 @@ fn handle_ranking(client: &ureq::Agent, request: &rouille::Request) -> rouille::
         "Pixiv Proxy",
         html! {
             h1 { "Pixiv Proxy" }
+            (render_options("", "safe", "date_d", "s_tag"))
             ul.search {
                 @for item in ranking.contents {
                     @let url = format!("/artworks/{}", item.illust_id);
@@ -205,9 +207,9 @@ fn handle_ranking(client: &ureq::Agent, request: &rouille::Request) -> rouille::
                             a href=(&url) {
                                 @let ratio = item.height as f32 / item.width as f32;
                                 @let (width, height) = if ratio < 2.0 {
-                                    (240, f32::ceil(ratio * 240.0) as u32)
+                                    (200, f32::ceil(ratio * 200.0) as u32)
                                 } else {
-                                    (f32::ceil(480.0 / ratio) as u32, 480)
+                                    (f32::ceil(400.0 / ratio) as u32, 400)
                                 };
                                 @let url = util::image_to_proxy(&item.url);
                                 img src=(&url) width=(width) height=(height);
@@ -251,42 +253,12 @@ fn render_search(
         search_mode
     ));
 
-    fn make_option(name: &str, value: &str, mode: &str) -> maud::Markup {
-        html! {
-            @if mode == value {
-                option value=(&value) selected { (&name) }
-            } @else {
-                option value=(&value) { (&name) }
-            }
-        }
-    }
-
     let docs = document! {
         tag,
         html! {
             h1 { (&tag) }
             (&search.illust_manga.total)
-            form action="/search" method="get" {
-                input type="text" name="q" placeholder="Keywords..." value=(&tag);
-                select name="mode" {
-                    (make_option("All", "all", mode));
-                    (make_option("Safe", "safe", mode));
-                    (make_option("R-18", "r18", mode));
-                }
-                select name="order" {
-                    (make_option("By Upload Date (Newest)", "date_d", order));
-                    (make_option("By Upload Date (Oldest)", "date", order));
-                    (make_option("By Popularity (All)", "popular_d", order));
-                    (make_option("By Popularity (Male)", "popular_male_d", order));
-                    (make_option("By Popularity (Female)", "popular_female_d", order));
-                }
-                select name="s_mode" {
-                    (make_option("Tags (partial match)", "s_tag", search_mode))
-                    (make_option("Tags (perfect match)", "s_tag_full", search_mode))
-                    (make_option("Title, Caption", "s_tc", search_mode))
-                }
-                button type="submit" { "Search" }
-            }
+            (render_options(tag, mode, order, search_mode))
             (render_list(&search.illust_manga.data))
             @if search.illust_manga.total > 60 {
                 @let format = format!("/tags/{}/artworks?order={}&mode={}&s_mode={}&p=", tag, order, mode, search_mode);
@@ -336,13 +308,11 @@ fn handle_artwork(client: &ureq::Agent, id: u32) -> rouille::Response {
                 (artwork.view_count)
             }
             /* Images */
-            ul.illust__images {
+            div.illust__images {
                 @match artwork.illust_type {
                     2 => {
                         @let src = format!("/ugoira/{}", id);
-                        li {
-                            video poster=(&image) src=(&src) autoplay="" loop="" muted="" {}
-                        }
+                        video poster=(&image) src=(&src) controls="" autoplay="" loop="" muted="" {}
                     },
                     _ => @for url in std::iter::once(image.clone())
                         .chain(
@@ -350,7 +320,7 @@ fn handle_artwork(client: &ureq::Agent, id: u32) -> rouille::Response {
                                 image.clone().replace("_p0.", &format!("_p{}.", i))
                             )
                         ) {
-                        li { img src=(&url) alt=(&artwork.alt); }
+                        img src=(&url) alt=(&artwork.alt);
                     }
                 }
             }
@@ -404,7 +374,9 @@ fn handle_user(
             header.author {
                 img.logo src=(&image) alt=(&user.name) width="170";
                 h1 { (&user.name) }
-                p { (PreEscaped(&user.comment_html)) }
+                @if !user.comment_html.is_empty() {
+                    p { (PreEscaped(&user.comment_html)) }
+                }
             }
             section {
                 (render_list(&elements))
@@ -547,7 +519,7 @@ fn render_list(list: &[PixivSearchResult]) -> maud::Markup {
     html! {
         ul.search {
             @for artwork in list {
-                @let link = format!("/en/artworks/{}", artwork.id);
+                @let link = format!("/artworks/{}", artwork.id);
                 @let img = util::image_to_proxy(&artwork.url);
                 li {
                     a href=(&link) {
@@ -562,11 +534,53 @@ fn render_list(list: &[PixivSearchResult]) -> maud::Markup {
                                 (artwork.page_count)
                             }
                         }
-                        img src=(&img) width="250" height="250";
+                        @if artwork.illust_type == 2 {
+                            svg.search__play width="35px" height="35px" viewBox="0 0 100 100" {
+                                circle cx="50" cy="50" r="50" {}
+                                path d=(SVG_PLAY_PATH) {}
+                            }
+                        }
+                        img src=(&img) width="200" height="200";
                     }
                     a href=(&link) { (&artwork.title) }
                 }
             }
+        }
+    }
+}
+
+fn render_options(tag: &str, mode: &str, order: &str, search_mode: &str) -> maud::Markup {
+    fn make_option(name: &str, value: &str, mode: &str) -> maud::Markup {
+        html! {
+            @if mode == value {
+                option value=(&value) selected { (&name) }
+            } @else {
+                option value=(&value) { (&name) }
+            }
+        }
+    }
+
+    html! {
+        form action="/search" method="get" {
+            input type="text" name="q" placeholder="Keywords..." value=(&tag);
+            select name="mode" {
+                (make_option("All", "all", mode));
+                (make_option("Safe", "safe", mode));
+                (make_option("R-18", "r18", mode));
+            }
+            select name="order" {
+                (make_option("By Upload Date (Newest)", "date_d", order));
+                (make_option("By Upload Date (Oldest)", "date", order));
+                (make_option("By Popularity (All)", "popular_d", order));
+                (make_option("By Popularity (Male)", "popular_male_d", order));
+                (make_option("By Popularity (Female)", "popular_female_d", order));
+            }
+            select name="s_mode" {
+                (make_option("Tags (partial match)", "s_tag", search_mode))
+                (make_option("Tags (perfect match)", "s_tag_full", search_mode))
+                (make_option("Title, Caption", "s_tc", search_mode))
+            }
+            button type="submit" { "Search" }
         }
     }
 }

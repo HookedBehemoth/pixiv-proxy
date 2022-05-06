@@ -49,14 +49,14 @@ main {
 
 .search {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   grid-gap: 0.5rem;
   list-style: none;
   padding: 0px;
 
   li {
-    width: 250px;
-    height: 300px;
+    width: 200px;
+    height: 240px;
     position: relative;
     margin: auto;
     line-height: normal;
@@ -98,6 +98,23 @@ main {
       margin-right: 5px;
     }
   }
+
+  &__play {
+    width: 35px;
+    height: 35px;
+    position: absolute;
+    left: 100px;
+    top: 100px;
+    transform: translate(-50%, -50%);
+
+    circle {
+      fill: #1f1f1fd0;
+    }
+
+    path {
+      fill: white;
+    }
+  }
 }
 
 img,
@@ -134,14 +151,7 @@ footer {
   }
 
   &__images {
-    display: grid;
-    list-style: none;
-    padding: 0px;
-    margin: 0px;
-
-    li {
-      margin: auto;
-    }
+    text-align: center;
   }
 }
 
@@ -177,6 +187,10 @@ img.logo {
   margin: 0px 10px 10px 0px;
 }
 
-header.author {
+.author {
   overflow: auto;
+
+  p {
+    font-size: 14px;
+  }
 }
