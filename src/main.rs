@@ -210,7 +210,7 @@ fn handle_ranking(client: &ureq::Agent, request: &rouille::Request) -> rouille::
                                     (f32::ceil(480.0 / ratio) as u32, 480)
                                 };
                                 @let url = util::image_to_proxy(&item.url);
-                                img src=(&url) width=(width) height=(height) {}
+                                img src=(&url) width=(width) height=(height);
                             }
                         }
                         a href=(&url) { (&item.title) }
@@ -350,7 +350,7 @@ fn handle_artwork(client: &ureq::Agent, id: u32) -> rouille::Response {
                                 image.clone().replace("_p0.", &format!("_p{}.", i))
                             )
                         ) {
-                        li { img src=(&url) alt=(&artwork.alt) {} }
+                        li { img src=(&url) alt=(&artwork.alt); }
                     }
                 }
             }
@@ -475,11 +475,11 @@ fn handle_rss(client: &ureq::Agent, request: &rouille::Request) -> rouille::Resp
                         p { (date.format("%Y-%m-%d %H:%M:%S")) }
                         @match s.illust_type {
                             2 => {
-                                img src=(format!("{}_master1200.jpg", img_base)) {}
+                                img src=(format!("{}_master1200.jpg", img_base));
                             }
                             _ => {
                                 @for i in 0..s.page_count {
-                                    img src=(&format!("{}_p{}_master1200.jpg", img_base, i)) {}
+                                    img src=(&format!("{}_p{}_master1200.jpg", img_base, i));
                                 }
                             }
                         }
@@ -492,7 +492,7 @@ fn handle_rss(client: &ureq::Agent, request: &rouille::Request) -> rouille::Resp
                             BASE_URL,
                             util::image_to_proxy(&s.url)
                         );
-                        img src=(url) width="250" height="250" {}
+                        img src=(url) width="250" height="250";
                     )
                 }
             };
@@ -562,7 +562,7 @@ fn render_list(list: &[PixivSearchResult]) -> maud::Markup {
                                 (artwork.page_count)
                             }
                         }
-                        img src=(&img) width="250" height="250" {}
+                        img src=(&img) width="250" height="250";
                     }
                     a href=(&link) { (&artwork.title) }
                 }
