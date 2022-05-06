@@ -1,5 +1,5 @@
-use std::borrow::Cow;
 use rouille::{Response, ResponseBody};
+use std::borrow::Cow;
 
 pub fn handle_imageproxy(client: &ureq::Agent, path: &str) -> Response {
     const OFFSET: usize = "/imageproxy/".len();

@@ -1,28 +1,32 @@
 use crate::api::{common::ApiResponse, error::ApiError};
 use serde::Deserialize;
 
-pub(crate) fn fetch<T>(client: &ureq::Agent, url: &str) -> Result<T, ApiError>
-where
-    T: for<'a> Deserialize<'a>,
-{
+pub(crate) fn fetch_generic(client: &ureq::Agent, url: &str) -> Result<ureq::Response, ApiError> {
     fn is_success(status: u16) -> bool {
         (200..300).contains(&status)
     }
 
-    let response = match client.get(url).call() {
+    match client.get(url).call() {
         Ok(response) => {
             if !is_success(response.status()) {
-                return Err(ApiError::External(
+                Err(ApiError::External(
                     response.status(),
                     response.into_string().unwrap_or_default(),
-                ));
+                ))
+            } else {
+                Ok(response)
             }
-            response
         }
-        Err(err) => {
-            return Err(ApiError::Internal(err.to_string()));
-        }
-    };
+        Err(err) => Err(ApiError::Internal(err.to_string())),
+    }
+}
+
+/* Fetch from pixiv ajax API */
+pub(crate) fn fetch<T>(client: &ureq::Agent, url: &str) -> Result<T, ApiError>
+where
+    T: for<'a> Deserialize<'a>,
+{
+    let response = fetch_generic(client, url)?;
 
     match response.into_json::<ApiResponse<T>>() {
         Ok(response) => {

@@ -8,6 +8,7 @@ use api::{
     artwork::fetch_artwork,
     common::PixivSearchResult,
     error::ApiError,
+    ranking::fetch_ranking,
     search::fetch_search,
     user::{fetch_user_illust_ids, fetch_user_illustrations, fetch_user_profile},
 };
@@ -16,10 +17,6 @@ use maud::{html, PreEscaped};
 use redirect::{redirect_jump, redirect_legacy_illust};
 use rouille::router;
 use ugoira::handle_ugoira;
-
-use rustls::Certificate;
-use std::sync::Arc;
-use ureq::{Agent, AgentBuilder};
 
 const BASE_URL: &str = "https://illegalesachen.de";
 const CSS: &str = include_str!(concat!(env!("OUT_DIR"), "/main.css"));
@@ -32,40 +29,46 @@ const SVG_EYE_OUTER_PATH: &str =
 const SVG_EYE_INNER_PATH: &str =
     "M7 8.5a2.5 2.5 0 110-5 2.5 2.5 0 010 5zm0-1a1.5 1.5 0 100-3 1.5 1.5 0 000 3z";
 
-macro_rules! document {
-    ($title:expr, $content:expr, $( $head:expr )? ) => {
-        html! {
-            (maud::DOCTYPE)
-            html lang="en" {
-                head {
-                    meta charset="utf-8";
-                    title { ($title) }
-                    style { (CSS) }
-                    meta name="viewport" content="width=device-width, initial-scale=1";
-                    $( ($head) )?
-                }
-                body {
-                    main { ($content) }
-                    footer { div { a href="/" { "Home" } " - " a href="/about" { "About" } } }
-                }
+fn document(title: &str, content: maud::Markup, head: Option<maud::Markup>) -> maud::Markup {
+    html! {
+        (maud::DOCTYPE)
+        html lang="en" {
+            head {
+                meta charset="utf-8";
+                title { (title) }
+                style { (CSS) }
+                meta name="viewport" content="width=device-width, initial-scale=1";
+                @if head.is_some() { (head.unwrap()) }
+            }
+            body {
+                main { (content) }
+                footer { div { a href="/" { "Home" } " - " a href="/about" { "About" } } }
             }
         }
+    }
+}
+macro_rules! document {
+    ($title:expr, $content:expr, $head:expr) => {
+        document($title, $content, Some($head))
+    };
+    ($title:expr, $content:expr) => {
+        document($title, $content, None)
     };
 }
 
 fn main() {
     /* Construct http client */
-    let client: Agent = {
+    let client: ureq::Agent = {
         /* Load tls certificate */
         let certs = rustls_native_certs::load_native_certs().expect("Could not load certs!");
 
         let mut root_store = rustls::RootCertStore::empty();
         for cert in certs {
             root_store
-                .add(&Certificate(cert.0))
+                .add(&rustls::Certificate(cert.0))
                 .expect("Could not add cert!");
         }
-        let tls_config = Arc::new(
+        let tls_config = std::sync::Arc::new(
             rustls::ClientConfig::builder()
                 .with_safe_defaults()
                 .with_root_certificates(root_store)
@@ -97,7 +100,7 @@ fn main() {
         };
 
         /* Build client */
-        AgentBuilder::new()
+        ureq::AgentBuilder::new()
             .tls_config(tls_config)
             .user_agent(
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:99.0) Gecko/20100101 Firefox/99.0",
@@ -109,18 +112,10 @@ fn main() {
 
     rouille::start_server("0.0.0.0:8080", move |request| {
         router!(request,
-            (GET) (/) => {
-                render_search(&client, "けものフレンズ", "popular_d", "safe", 1, "s_tag_full")
-            },
-            (GET) (/en/) => {
-                render_search(&client, "けものフレンズ", "popular_d", "safe", 1, "s_tag_full")
-            },
-            (GET) (/en/tags/{tag: String}/artworks) => {
-                handle_tags(&client, request, &tag)
-            },
-            (GET) (/tags/{tag: String}/artworks) => {
-                handle_tags(&client, request, &tag)
-            },
+            (GET) (/) => { handle_ranking(&client, request) },
+            (GET) (/en/) => { handle_ranking(&client, request) },
+            (GET) (/en/tags/{tag: String}/artworks) => { handle_tags(&client, request, &tag) },
+            (GET) (/tags/{tag: String}/artworks) => { handle_tags(&client, request, &tag) },
             (GET) (/search) => {
                 let term = match request.get_param("q") {
                     Some(term) => term,
@@ -128,47 +123,34 @@ fn main() {
                 };
                 handle_tags(&client, request, &term)
             },
-            (GET) (/en/users/{id: String}/artworks) => {
-                handle_user(&client, request, &id)
-            },
-            (GET) (/users/{id: String}/artworks) => {
-                handle_user(&client, request, &id)
-            },
-            (GET) (/en/users/{id: String}) => {
-                handle_user(&client, request, &id)
-            },
-            (GET) (/users/{id: String}) => {
-                handle_user(&client, request, &id)
-            },
-            (GET) (/en/artworks/{id: u32}) => {
-                handle_artwork(&client, id)
-            },
-            (GET) (/artworks/{id: u32}) => {
-                handle_artwork(&client, id)
-            },
-            (GET) (/ugoira/{id: u32}) => {
-                handle_ugoira(&client, id)
-            },
-            (GET) (/rss) => {
-                handle_rss(&client, request)
-            },
-            (GET) (/about) => {
-                render_about()
-            },
+
+            /* user */
+            (GET) (/en/users/{id: String}/artworks) => { handle_user(&client, request, &id) },
+            (GET) (/users/{id: String}/artworks) => { handle_user(&client, request, &id) },
+            (GET) (/en/users/{id: String}) => { handle_user(&client, request, &id) },
+            (GET) (/users/{id: String}) => { handle_user(&client, request, &id) },
+
+            /* artwork */
+            (GET) (/en/artworks/{id: u32}) => { handle_artwork(&client, id) },
+            (GET) (/artworks/{id: u32}) => { handle_artwork(&client, id) },
+
+            (GET) (/ugoira/{id: u32}) => { handle_ugoira(&client, id) },
+            (GET) (/rss) => { handle_rss(&client, request) },
+            (GET) (/about) => { render_about() },
             _ => {
                 /* Just matching manually now... */
                 let url = request.url();
                 if url.starts_with("/imageproxy/") {
-                    handle_imageproxy(&client, &url)
-                } else if url == "/favicon.ico" {
-                    rouille::Response::from_data("image/x-icon", FAVICON)
-                        .with_public_cache(365 * 24 * 60 * 60)
-                } else if url == "/jump.php" {
-                    redirect_jump(request)
-                } else if url == "/member_illust.php" {
-                    redirect_legacy_illust(request)
-                } else {
-                    render_error(404, "Endpoint not found!")
+                    return handle_imageproxy(&client, &url);
+                }
+                match url.as_str() {
+                    "/favicon.ico" => {
+                        rouille::Response::from_data("image/x-icon", FAVICON)
+                            .with_public_cache(365 * 24 * 60 * 60)
+                    },
+                    "/jump.php" => { redirect_jump(request) },
+                    "/member_illust.php" => { redirect_legacy_illust(request) },
+                    _ => { render_error(404, "Endpoint not found!") }
                 }
             }
         )
@@ -203,6 +185,44 @@ macro_rules! get_param_or_num {
             None => $default,
         }
     }};
+}
+
+fn handle_ranking(client: &ureq::Agent, request: &rouille::Request) -> rouille::Response {
+    let date = request.get_param("date");
+    let page = get_param_or_num!(request, "p", 1);
+
+    let ranking = try_api!(fetch_ranking(client, date, page));
+
+    let doc = document! {
+        "Pixiv Proxy",
+        html! {
+            h1 { "Pixiv Proxy" }
+            ul.search {
+                @for item in ranking.contents {
+                    @let url = format!("/artworks/{}", item.illust_id);
+                    li style="height:auto;text-align:center;" {
+                        div {
+                            a href=(&url) {
+                                @let ratio = item.height as f32 / item.width as f32;
+                                @let (width, height) = if ratio < 2.0 {
+                                    (240, f32::ceil(ratio * 240.0) as u32)
+                                } else {
+                                    (f32::ceil(480.0 / ratio) as u32, 480)
+                                };
+                                @let url = util::image_to_proxy(&item.url);
+                                img src=(&url) width=(width) height=(height) {}
+                            }
+                        }
+                        a href=(&url) { (&item.title) }
+                    }
+                }
+            }
+            @let format = format!("?date={}&p=", ranking.date);
+            (render_nav(page, ranking.rank_total, &format))
+        }
+    };
+
+    rouille::Response::html(doc.into_string())
 }
 
 fn handle_tags(client: &ureq::Agent, request: &rouille::Request, tag: &str) -> rouille::Response {
@@ -242,7 +262,7 @@ fn render_search(
     }
 
     let docs = document! {
-        &tag,
+        tag,
         html! {
             h1 { (&tag) }
             (&search.illust_manga.total)
@@ -272,7 +292,7 @@ fn render_search(
                 @let format = format!("/tags/{}/artworks?order={}&mode={}&s_mode={}&p=", tag, order, mode, search_mode);
                 (render_nav(page, search.illust_manga.total, &format))
             }
-        },
+        }
     };
 
     rouille::Response::html(docs.into_string())
@@ -330,7 +350,7 @@ fn handle_artwork(client: &ureq::Agent, id: u32) -> rouille::Response {
                                 image.clone().replace("_p0.", &format!("_p{}.", i))
                             )
                         ) {
-                        li { img src=(&url) alt=(&artwork.alt); }
+                        li { img src=(&url) alt=(&artwork.alt) {} }
                     }
                 }
             }
@@ -455,11 +475,11 @@ fn handle_rss(client: &ureq::Agent, request: &rouille::Request) -> rouille::Resp
                         p { (date.format("%Y-%m-%d %H:%M:%S")) }
                         @match s.illust_type {
                             2 => {
-                                img src=(format!("{}_master1200.jpg", img_base));
+                                img src=(format!("{}_master1200.jpg", img_base)) {}
                             }
                             _ => {
                                 @for i in 0..s.page_count {
-                                    img src=(&format!("{}_p{}_master1200.jpg", img_base, i));
+                                    img src=(&format!("{}_p{}_master1200.jpg", img_base, i)) {}
                                 }
                             }
                         }
@@ -472,24 +492,40 @@ fn handle_rss(client: &ureq::Agent, request: &rouille::Request) -> rouille::Resp
                             BASE_URL,
                             util::image_to_proxy(&s.url)
                         );
-                        img src=(url) width="250" height="250";
+                        img src=(url) width="250" height="250" {}
                     )
                 }
+            };
+            let create_date = chrono::DateTime::parse_from_rfc3339(&s.create_date);
+            let rfc2822 = match create_date {
+                Ok(date) => Some(date.to_rfc2822()),
+                Err(_) => None,
             };
             rss::ItemBuilder::default()
                 .title(Some(s.title.clone()))
                 .link(Some(link))
                 .guid(Some(guid))
                 .description(Some(description.into_string()))
-                .author(Some(s.user_name.clone()))
-                .pub_date(Some(s.create_date.clone()))
+                .pub_date(rfc2822)
                 .build()
         })
         .collect();
 
+    let self_url = match query_type.as_str() {
+        "author" => {
+            format!("{}/rss?type=author&q={}", BASE_URL, query_words)
+        }
+        _ => {
+            format!(
+                "{}/rss?type=search&q={}&mode={}&s_mode={}",
+                BASE_URL, query_words, query_mode, query_search_mode
+            )
+        }
+    };
+
     let content = rss::ChannelBuilder::default()
         .title(query_words)
-        .link(BASE_URL)
+        .link(self_url)
         .items(items)
         .description("Pixiv RSS")
         .build();
@@ -521,12 +557,12 @@ fn render_list(list: &[PixivSearchResult]) -> maud::Markup {
                         @if artwork.page_count > 1 {
                             div.search__hover.search__count {
                                 svg viewBox="0 0 10 10" {
-                                    path d=(SVG_PAGE_PATH);
+                                    path d=(SVG_PAGE_PATH) {}
                                 }
                                 (artwork.page_count)
                             }
                         }
-                        img src=(&img) width="250" height="250";
+                        img src=(&img) width="250" height="250" {}
                     }
                     a href=(&link) { (&artwork.title) }
                 }
@@ -557,14 +593,15 @@ fn render_nav(current_page: u32, count: usize, template: &str) -> maud::Markup {
 }
 
 fn render_error(code: u16, message: &str) -> rouille::Response {
-    let title = format!("{} - {}", code, message);
+    let title = format!("{}", code);
 
     let doc = document! {
         &title,
         html! {
             h1 { (&title) }
+            p { (message) }
             p { a href="/" { "Go home" } }
-        },
+        }
     };
 
     rouille::Response::html(doc.into_string()).with_status_code(code)
@@ -584,7 +621,7 @@ fn render_about() -> rouille::Response {
             h1 { "About" }
             p { "This is a simple Pixiv API client written in Rust." }
             p { "The source code is available on " a href="https://github.com/HookedBehemoth/pixiv-proxy" { "GitHub" } "." }
-        },
+        }
     };
 
     rouille::Response::html(doc.into_string())
