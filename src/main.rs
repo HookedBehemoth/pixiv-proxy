@@ -383,7 +383,7 @@ fn handle_user(
                     p { (PreEscaped(&user.comment_html)) }
                 }
             }
-            section {
+            div {
                 (render_list(&elements))
             }
             @if count > 60 {
