@@ -16,3 +16,10 @@ pub fn redirect_legacy_illust(request: &Request) -> Response {
     let destination = format!("/artworks/{}", id);
     Response::redirect_301(destination)
 }
+
+pub fn redirect_fanbox(client: &ureq::Agent, id: u32) -> Response {
+    let url = format!("https://www.pixiv.net/fanbox/creator/{}", id);
+    let response = client.get(&url).call().unwrap();
+    let location = response.header("Location").unwrap().to_string();
+    Response::redirect_301(location)
+}

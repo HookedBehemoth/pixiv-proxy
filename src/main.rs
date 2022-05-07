@@ -14,7 +14,7 @@ use api::{
 };
 use imageproxy::handle_imageproxy;
 use maud::{html, PreEscaped};
-use redirect::{redirect_jump, redirect_legacy_illust};
+use redirect::{redirect_jump, redirect_legacy_illust, redirect_fanbox};
 use rouille::router;
 use ugoira::handle_ugoira;
 
@@ -145,6 +145,8 @@ fn main() {
             (GET) (/ugoira/{id: u32}) => { handle_ugoira(&client, id) },
             (GET) (/rss) => { handle_rss(&client, request, &host) },
             (GET) (/about) => { render_about() },
+
+            (GET) (/fanbox/creator/{id: u32}) => { redirect_fanbox(&client, id) },
             _ => {
                 /* Just matching manually now... */
                 let url = request.url();
