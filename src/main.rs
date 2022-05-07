@@ -120,14 +120,14 @@ fn main() {
         router!(request,
             (GET) (/) => { handle_ranking(&client, request) },
             (GET) (/en/) => { handle_ranking(&client, request) },
-            (GET) (/en/tags/{tag: String}/artworks) => { handle_tags(&client, request, &tag) },
-            (GET) (/tags/{tag: String}/artworks) => { handle_tags(&client, request, &tag) },
+            (GET) (/en/tags/{tag: String}/artworks) => { handle_search(&client, request, &tag) },
+            (GET) (/tags/{tag: String}/artworks) => { handle_search(&client, request, &tag) },
             (GET) (/search) => {
                 let term = match request.get_param("q") {
                     Some(term) => term,
                     None => return render_error(401, "No search term"),
                 };
-                handle_tags(&client, request, &term)
+                handle_search(&client, request, &term)
             },
 
             (GET) (/scroll) => { handle_scroll(&client, request) },
@@ -299,7 +299,7 @@ fn handle_ranking(client: &ureq::Agent, request: &rouille::Request) -> rouille::
     rouille::Response::html(doc.into_string())
 }
 
-fn handle_tags(client: &ureq::Agent, request: &rouille::Request, tag: &str) -> rouille::Response {
+fn handle_search(client: &ureq::Agent, request: &rouille::Request, tag: &str) -> rouille::Response {
     let order = get_param_or_str!(request, "order", "date_d");
     let mode = get_param_or_str!(request, "mode", "all");
     let page = get_param_or_num!(request, "p", 1);
@@ -323,6 +323,18 @@ fn render_search(
         html! {
             h1 { (&tag) }
             (&search.illust_manga.total)
+            @let options = format!("?q={}&mode={}&order={}&s_mode={}", tag, mode, order, search_mode);
+            a href=(format!("/scroll{}&p={}", options, page)) { "Scroll..." }
+            a href=(format!("/rss{}", options)) {
+                svg width="20" height="20" viewBox="0 0 20 20" style="background-color:#f78422" {
+                    circle fill="#fff" cx="4" cy="16" r="2" {}
+                    g fill="none" stroke="#fff" stroke-width="3" {
+                        path d="M2,4a14,14,0,0,1,14,14" {}
+                        path d="M2,9a9,9,0,0,1,9,9" {}
+                    }
+                }
+                "RSS"
+            }
             (render_options(tag, mode, order, search_mode))
             (render_list(&search.illust_manga.data))
             @if search.illust_manga.total > 60 {
