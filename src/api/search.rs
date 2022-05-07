@@ -20,7 +20,7 @@ pub fn fetch_search(
     query: &str,
     order: &str,
     mode: &str,
-    page: &str,
+    page: u32,
     search_mode: &str,
 ) -> Result<PixivSearch, ApiError> {
     // https://www.pixiv.net/ajax/search/artworks/世話やきキツネの仙狐さん?word=世話やきキツネの仙狐さん&order=date_d&mode=r18&p=3&s_mode=s_tag&type=all&lang=en

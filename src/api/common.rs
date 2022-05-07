@@ -22,4 +22,6 @@ pub struct PixivSearchResult {
     pub page_count: u32,
     pub illust_type: u8,
     pub url: String,
+    pub width: u32,
+    pub height: u32,
 }

@@ -130,6 +130,8 @@ fn main() {
                 handle_tags(&client, request, &term)
             },
 
+            (GET) (/scroll) => { handle_scroll(&client, request) },
+
             /* user */
             (GET) (/en/users/{id: String}/artworks) => { handle_user(&client, request, &id) },
             (GET) (/users/{id: String}/artworks) => { handle_user(&client, request, &id) },
@@ -193,6 +195,76 @@ macro_rules! get_param_or_num {
     }};
 }
 
+fn handle_scroll(client: &ureq::Agent, request: &rouille::Request) -> rouille::Response {
+    let query = get_param_or_str!(request, "q", "");
+    let order = get_param_or_str!(request, "order", "date_d");
+    let mode = get_param_or_str!(request, "mode", "all");
+    let page = get_param_or_num!(request, "p", 1);
+    let search_mode = get_param_or_str!(request, "s_mode", "s_tag_full");
+
+    let content = try_api!(fetch_search(
+        client,
+        &query,
+        &order,
+        &mode,
+        page,
+        &search_mode
+    ));
+
+    let doc = document! {
+        &query,
+        html! {
+            h1 { (&query) }
+            p { (content.illust_manga.total) }
+            ul.scroll {
+                @for illust in content.illust_manga.data.iter() {
+                    li {
+                        h2 { a href=(format!("/artworks/{}", illust.id)) { (illust.title) } }
+
+                        @if let Ok(date) = chrono::DateTime::parse_from_rfc3339(&illust.update_date) {
+                            p { (date.format("%Y-%m-%d %H:%M:%S").to_string()) }
+                            @let img_base = format!(
+                                "/imageproxy/img-master/img/{}/{}",
+                                date.format("%Y/%m/%d/%H/%M/%S"),
+                                illust.id
+                            );
+                            @let (width, height) = util::scale_by_aspect_ratio(illust.width, illust.height, 900, 900);
+                            @match illust.illust_type {
+                                2 => {
+                                    @let thumbnail = format!("{}_master1200.jpg", img_base);
+                                    @let video = format!("/ugoira/{}", illust.id);
+                                    video src=(&video) poster=(&thumbnail) width=(width) height=(height) controls muted loop playsinline preload="none" loading="lazy" {}
+                                }
+                                _ => {
+                                    img src=(format!("{}_p0_master1200.jpg", img_base)) width=(width) height=(height) alt="" loading="lazy";
+                                    @if illust.page_count > 1 {
+                                        details {
+                                            summary {
+                                                (format!("{} more...", illust.page_count - 1))
+                                            }
+                                            @for i in 1..illust.page_count {
+                                                img src=(format!("{}_p{}_master1200.jpg", img_base, i)) alt="" loading="lazy";
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        } @else {
+                            img src=(util::image_to_proxy(&illust.url)) width="250" height="250" alt=(illust.id);
+                        }
+                    }
+                }
+            }
+            @if content.illust_manga.total > content.illust_manga.data.len() {
+                @let format = format!("scroll?q={}&mode={}&order={}&s_mode={}&p=", query, mode, order, search_mode);
+                (render_nav(page, content.illust_manga.total, &format))
+            }
+        }
+    };
+
+    rouille::Response::html(doc.into_string())
+}
+
 fn handle_ranking(client: &ureq::Agent, request: &rouille::Request) -> rouille::Response {
     let date = request.get_param("date");
     let page = get_param_or_num!(request, "p", 1);
@@ -210,12 +282,7 @@ fn handle_ranking(client: &ureq::Agent, request: &rouille::Request) -> rouille::
                     li {
                         div {
                             a href=(&url) {
-                                @let ratio = item.height as f32 / item.width as f32;
-                                @let (width, height) = if ratio < 2.0 {
-                                    (200, f32::ceil(ratio * 200.0) as u32)
-                                } else {
-                                    (f32::ceil(400.0 / ratio) as u32, 400)
-                                };
+                                @let (width, height) = util::scale_by_aspect_ratio(item.width, item.height, 200, 400);
                                 @let url = util::image_to_proxy(&item.url);
                                 img src=(&url) width=(width) height=(height) alt=(&item.title);
                             }
@@ -249,14 +316,7 @@ fn render_search(
     page: u32,
     search_mode: &str,
 ) -> rouille::Response {
-    let search = try_api!(fetch_search(
-        client,
-        tag,
-        order,
-        mode,
-        &page.to_string(),
-        search_mode
-    ));
+    let search = try_api!(fetch_search(client, tag, order, mode, page, search_mode));
 
     let docs = document! {
         tag,
@@ -317,7 +377,7 @@ fn handle_artwork(client: &ureq::Agent, id: u32) -> rouille::Response {
                 @match artwork.illust_type {
                     2 => {
                         @let src = format!("/ugoira/{}", id);
-                        video poster=(&image) src=(&src) controls="" autoplay="" loop="" muted="" {}
+                        video poster=(&image) src=(&src) controls autoplay muted loop playsinline {}
                     },
                     _ => @for url in std::iter::once(image.clone())
                         .chain(
@@ -423,7 +483,7 @@ fn handle_rss(client: &ureq::Agent, request: &rouille::Request, host: &str) -> r
                 &query_words,
                 "date_d",
                 &query_mode,
-                "1",
+                1,
                 &query_search_mode,
             ));
             search.illust_manga.data
