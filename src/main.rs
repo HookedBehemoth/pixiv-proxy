@@ -204,10 +204,10 @@ fn handle_ranking(client: &ureq::Agent, request: &rouille::Request) -> rouille::
         html! {
             h1 { "Pixiv Proxy" }
             (render_options("", "safe", "date_d", "s_tag"))
-            ul.search {
+            ul.search.ranking {
                 @for item in ranking.contents {
                     @let url = format!("/artworks/{}", item.illust_id);
-                    li style="height:auto;text-align:center;" {
+                    li {
                         div {
                             a href=(&url) {
                                 @let ratio = item.height as f32 / item.width as f32;
