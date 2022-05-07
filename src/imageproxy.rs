@@ -28,7 +28,7 @@ pub fn handle_imageproxy(client: &ureq::Agent, path: &str) -> Response {
 
     Response {
         status_code: 200,
-        headers: headers,
+        headers,
         data: reader,
         upgrade: None,
     }

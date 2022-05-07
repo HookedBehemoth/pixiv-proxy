@@ -18,7 +18,6 @@ use redirect::{redirect_jump, redirect_legacy_illust};
 use rouille::router;
 use ugoira::handle_ugoira;
 
-const BASE_URL: &str = "https://illegalesachen.de";
 const CSS: &str = include_str!(concat!(env!("OUT_DIR"), "/main.css"));
 const FAVICON: &[u8] = include_bytes!("../static/favicon.ico");
 const SVG_PAGE_PATH: &str = "M8,3C8.55,3 9,3.45 9,4L9,9C9,9.55 8.55,10 8,10L3,10C2.45,10 2,9.55 2,9L6,9C7.1,9 8,8.1 8,7L8,3Z M1,1L6,1C6.55,1 7,1.45 7,2L7,7C7,7.55 6.55,8 6,8L1,8C0.45,8 0,7.55 0,7L0,2C0,1.45 0.45,1 1,1Z";
@@ -58,6 +57,11 @@ macro_rules! document {
 }
 
 fn main() {
+    let mut pargs = pico_args::Arguments::from_env();
+    let port: u32 = pargs.value_from_str("--port").unwrap();
+    let host: String = pargs.value_from_str("--host").unwrap();
+    let cookie: String = pargs.value_from_str("--cookie").unwrap();
+
     /* Construct http client */
     let client: ureq::Agent = {
         /* Load tls certificate */
@@ -97,7 +101,7 @@ fn main() {
 
         let middleware = PixivDefaultHeaders {
             referer: "https://pixiv.net/".to_string(),
-            cookie: std::env::args().nth(1).expect("PIXIV_COOKIE must be set"),
+            cookie,
         };
 
         /* Build client */
@@ -111,7 +115,8 @@ fn main() {
             .build()
     };
 
-    rouille::start_server("0.0.0.0:8080", move |request| {
+    let address = format!("0.0.0.0:{}", port);
+    rouille::start_server(&address, move |request| {
         router!(request,
             (GET) (/) => { handle_ranking(&client, request) },
             (GET) (/en/) => { handle_ranking(&client, request) },
@@ -136,7 +141,7 @@ fn main() {
             (GET) (/artworks/{id: u32}) => { handle_artwork(&client, id) },
 
             (GET) (/ugoira/{id: u32}) => { handle_ugoira(&client, id) },
-            (GET) (/rss) => { handle_rss(&client, request) },
+            (GET) (/rss) => { handle_rss(&client, request, &host) },
             (GET) (/about) => { render_about() },
             _ => {
                 /* Just matching manually now... */
@@ -401,7 +406,7 @@ fn handle_user(
     rouille::Response::html(doc.into_string())
 }
 
-fn handle_rss(client: &ureq::Agent, request: &rouille::Request) -> rouille::Response {
+fn handle_rss(client: &ureq::Agent, request: &rouille::Request, host: &str) -> rouille::Response {
     let query_type = get_param_or_str!(request, "type", "search");
     let query_words = get_param_or_str!(request, "q", "");
     let query_mode = get_param_or_str!(request, "mode", "all");
@@ -428,7 +433,7 @@ fn handle_rss(client: &ureq::Agent, request: &rouille::Request) -> rouille::Resp
     let items: Vec<rss::Item> = page
         .iter()
         .map(|s| {
-            let link = format!("{}/artworks/{}", BASE_URL, s.id);
+            let link = format!("{}/artworks/{}", host, s.id);
             let guid = rss::GuidBuilder::default()
                 .value(link.clone())
                 .permalink(true)
@@ -438,7 +443,7 @@ fn handle_rss(client: &ureq::Agent, request: &rouille::Request) -> rouille::Resp
                 Ok(date) => {
                     let img_base = format!(
                         "{}/imageproxy/img-master/img/{}/{}",
-                        BASE_URL,
+                        host,
                         date.format("%Y/%m/%d/%H/%M/%S"),
                         s.id
                     );
@@ -461,7 +466,7 @@ fn handle_rss(client: &ureq::Agent, request: &rouille::Request) -> rouille::Resp
                     html!(
                         @let url = format!(
                             "{}{}",
-                            BASE_URL,
+                            host,
                             util::image_to_proxy(&s.url)
                         );
                         img src=(url) width="250" height="250";
@@ -485,12 +490,12 @@ fn handle_rss(client: &ureq::Agent, request: &rouille::Request) -> rouille::Resp
 
     let self_url = match query_type.as_str() {
         "author" => {
-            format!("{}/rss?type=author&q={}", BASE_URL, query_words)
+            format!("{}/rss?type=author&q={}", host, query_words)
         }
         _ => {
             format!(
                 "{}/rss?type=search&q={}&mode={}&s_mode={}",
-                BASE_URL, query_words, query_mode, query_search_mode
+                host, query_words, query_mode, query_search_mode
             )
         }
     };
