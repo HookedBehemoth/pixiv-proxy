@@ -217,7 +217,7 @@ fn handle_ranking(client: &ureq::Agent, request: &rouille::Request) -> rouille::
                                     (f32::ceil(400.0 / ratio) as u32, 400)
                                 };
                                 @let url = util::image_to_proxy(&item.url);
-                                img src=(&url) width=(width) height=(height);
+                                img src=(&url) width=(width) height=(height) alt=(&item.title);
                             }
                         }
                         a href=(&url) { (&item.title) }
@@ -452,11 +452,11 @@ fn handle_rss(client: &ureq::Agent, request: &rouille::Request, host: &str) -> r
                         p { (date.format("%Y-%m-%d %H:%M:%S").to_string()) }
                         @match s.illust_type {
                             2 => {
-                                img src=(format!("{}_master1200.jpg", img_base));
+                                img src=(format!("{}_master1200.jpg", img_base)) alt=(s.id);
                             }
                             _ => {
                                 @for i in 0..s.page_count {
-                                    img src=(&format!("{}_p{}_master1200.jpg", img_base, i));
+                                    img src=(format!("{}_p{}_master1200.jpg", img_base, i)) alt=(i);
                                 }
                             }
                         }
@@ -469,7 +469,7 @@ fn handle_rss(client: &ureq::Agent, request: &rouille::Request, host: &str) -> r
                             host,
                             util::image_to_proxy(&s.url)
                         );
-                        img src=(url) width="250" height="250";
+                        img src=(url) width="250" height="250" alt=(s.id);
                     )
                 }
             };
@@ -520,7 +520,6 @@ fn handle_rss(client: &ureq::Agent, request: &rouille::Request, host: &str) -> r
     }
 }
 
-
 fn render_list(list: &[PixivSearchResult]) -> maud::Markup {
     html! {
         svg style="display:none" {
@@ -543,14 +542,14 @@ fn render_list(list: &[PixivSearchResult]) -> maud::Markup {
                         }
                         @if artwork.page_count > 1 {
                             div.search__hover.search__count {
-                                svg { use href="#page"; }
+                                svg { use href="#page" {} }
                                 (artwork.page_count)
                             }
                         }
                         @if artwork.illust_type == 2 {
-                            svg.search__play { use href="#play"; }
+                            svg.search__play { use href="#play" {} }
                         }
-                        img src=(&img) width="200" height="200";
+                        img src=(&img) width="200" height="200" alt=(&artwork.title);
                     }
                     a href=(&link) { (&artwork.title) }
                 }
