@@ -20,10 +20,10 @@ use ugoira::handle_ugoira;
 
 const CSS: &str = include_str!(concat!(env!("OUT_DIR"), "/main.css"));
 const FAVICON: &[u8] = include_bytes!("../static/favicon.ico");
-const SVG_PAGE_PATH: &str = "M8,3C8.55,3 9,3.45 9,4L9,9C9,9.55 8.55,10 8,10L3,10C2.45,10 2,9.55 2,9L6,9C7.1,9 8,8.1 8,7L8,3Z M1,1L6,1C6.55,1 7,1.45 7,2L7,7C7,7.55 6.55,8 6,8L1,8C0.45,8 0,7.55 0,7L0,2C0,1.45 0.45,1 1,1Z";
-const SVG_PLAY_PATH: &str = "M 57.5 37 C 35 24, 35 24, 35 50 S 35 76, 57.5 63 S 80 50, 57.5 37";
+const SVG_PAGE_PATH: &str = "M8 3c.55 0 1 .45 1 1v5c0 .55-.45 1-1 1H3c-.55 0-1-.45-1-1h4c1.1 0 2-.9 2-2V3zM1 1h5c.55 0 1 .45 1 1v5c0 .55-.45 1-1 1H1c-.55 0-1-.45-1-1V2c0-.55.45-1 1-1z";
+const SVG_PLAY_PATH: &str = "M57.5 37C35 24 35 24 35 50s0 26 22.5 13 22.5-13 0-26";
 const SVG_LIKE_PATH: &str = "M2 6a2 2 0 110-4 2 2 0 010 4zm8 0a2 2 0 110-4 2 2 0 010 4zM2.11 8.89a1 1 0 011.415-1.415 3.5 3.5 0 004.95 0 1 1 0 011.414 1.414 5.5 5.5 0 01-7.778 0z";
-const SVG_HEART_PATH: &str = "M9,0.75 C10.5,0.75 12,2 12,3.75 C12,6.5 10,9.25 6.25,11.5L6.25,11.5 C6,11.5 6,11.5 5.75,11.5C2,9.25 0,6.75 0,3.75 C1.1324993e-16,2 1.5,0.75 3,0.75C4,0.75 5.25,1.5 6,2.75 C6.75,1.5 9,0.75 9,0.75 Z";
+const SVG_HEART_PATH: &str = "M16 11C15 9 13 7.5 11 7.5a5 5 0 0 0-5 5c0 5 3.25 9.25 9.75 13a.5.5 0 0 0 .5 0C22.75 21.75 26 17.5 26 12.5a5 5 0 0 0-5-5c-2 0-4 1.5-5 3.5z";
 const SVG_EYE_OUTER_PATH: &str =
     "M0 6c2-3.333 4.333-5 7-5s5 1.667 7 5c-2 3.333-4.333 5-7 5S2 9.333 0 6z";
 const SVG_EYE_INNER_PATH: &str =
@@ -304,7 +304,7 @@ fn handle_artwork(client: &ureq::Agent, id: u32) -> rouille::Response {
                 }
                 svg viewBox="0 0 12 12" { path d=(&SVG_LIKE_PATH) fill="currentColor" {} }
                 (artwork.like_count)
-                svg viewBox="0 0 12 12" { path d=(&SVG_HEART_PATH) fill="currentColor" {} }
+                svg viewBox="6 7 20 19" { path d=(&SVG_HEART_PATH) fill="currentColor" {} }
                 (artwork.bookmark_count)
                 svg viewBox="0 0 14 12" {
                     path d=(&SVG_EYE_OUTER_PATH) fill="currentColor" {}
