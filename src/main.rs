@@ -294,7 +294,7 @@ fn handle_artwork(client: &ureq::Agent, id: u32) -> rouille::Response {
             p.illust__meta {
                 @if date.is_ok() {
                     time datetime=(&artwork.create_date) {
-                        (date.unwrap().format("%Y-%m-%d %H:%M:%S -"))
+                        (date.unwrap().format("%Y-%m-%d %H:%M:%S -").to_string())
                     }
                 }
                 svg viewBox="0 0 12 12" { path d=(&SVG_LIKE_PATH) fill="currentColor" {} }
@@ -444,7 +444,7 @@ fn handle_rss(client: &ureq::Agent, request: &rouille::Request) -> rouille::Resp
                     );
                     html!(
                         h1 { (&s.title) }
-                        p { (date.format("%Y-%m-%d %H:%M:%S")) }
+                        p { (date.format("%Y-%m-%d %H:%M:%S").to_string()) }
                         @match s.illust_type {
                             2 => {
                                 img src=(format!("{}_master1200.jpg", img_base));
@@ -515,8 +515,18 @@ fn handle_rss(client: &ureq::Agent, request: &rouille::Request) -> rouille::Resp
     }
 }
 
+
 fn render_list(list: &[PixivSearchResult]) -> maud::Markup {
     html! {
+        svg style="display:none" {
+            defs {
+                symbol id="page" viewBox="0 0 10 10" { path d=(SVG_PAGE_PATH) {} }
+                symbol id="play" viewBox="0 0 100 100" {
+                    circle fill="#1f1f1fd0" cx="50" cy="50" r="50" {}
+                    path fill="#fff" d=(SVG_PLAY_PATH) {}
+                }
+            }
+        }
         ul.search {
             @for artwork in list {
                 @let link = format!("/artworks/{}", artwork.id);
@@ -528,17 +538,12 @@ fn render_list(list: &[PixivSearchResult]) -> maud::Markup {
                         }
                         @if artwork.page_count > 1 {
                             div.search__hover.search__count {
-                                svg viewBox="0 0 10 10" {
-                                    path d=(SVG_PAGE_PATH) {}
-                                }
+                                svg { use href="#page"; }
                                 (artwork.page_count)
                             }
                         }
                         @if artwork.illust_type == 2 {
-                            svg.search__play width="35px" height="35px" viewBox="0 0 100 100" {
-                                circle cx="50" cy="50" r="50" {}
-                                path d=(SVG_PLAY_PATH) {}
-                            }
+                            svg.search__play { use href="#play"; }
                         }
                         img src=(&img) width="200" height="200";
                     }
