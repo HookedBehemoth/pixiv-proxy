@@ -237,7 +237,7 @@ fn handle_scroll(client: &ureq::Agent, request: &rouille::Request) -> rouille::R
                                 2 => {
                                     @let thumbnail = format!("{}_master1200.jpg", img_base);
                                     @let video = format!("/ugoira/{}", illust.id);
-                                    video src=(&video) poster=(&thumbnail) width=(width) height=(height) controls muted loop playsinline preload="none" loading="lazy" {}
+                                    video src=(&video) poster=(&thumbnail) width=(width) height=(height) controls muted loop playsinline preload="none" {}
                                 }
                                 _ => {
                                     img src=(format!("{}_p0_master1200.jpg", img_base)) width=(width) height=(height) alt="" loading="lazy";
