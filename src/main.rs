@@ -1,6 +1,7 @@
 mod api;
 mod imageproxy;
 mod redirect;
+mod render;
 mod ugoira;
 mod util;
 
@@ -14,9 +15,10 @@ use api::{
 };
 use imageproxy::handle_imageproxy;
 use maud::{html, PreEscaped};
-use redirect::{redirect_jump, redirect_legacy_illust, redirect_fanbox};
+use redirect::{redirect_fanbox, redirect_jump, redirect_legacy_illust};
 use rouille::router;
 use ugoira::handle_ugoira;
+use render::{datetime::DateTimeWrapper};
 
 const CSS: &str = include_str!(concat!(env!("OUT_DIR"), "/main.css"));
 const FAVICON: &[u8] = include_bytes!("../static/favicon.ico");
@@ -224,7 +226,7 @@ fn handle_scroll(client: &ureq::Agent, request: &rouille::Request) -> rouille::R
                         h2 { a href=(format!("/artworks/{}", illust.id)) { (illust.title) } }
 
                         @if let Ok(date) = chrono::DateTime::parse_from_rfc3339(&illust.update_date) {
-                            p { (date.format("%Y-%m-%d %H:%M:%S").to_string()) }
+                            p { (DateTimeWrapper(date.into())) }
                             @let img_base = format!(
                                 "/imageproxy/img-master/img/{}/{}",
                                 date.format("%Y/%m/%d/%H/%M/%S"),
@@ -373,7 +375,7 @@ fn handle_artwork(client: &ureq::Agent, id: u32) -> rouille::Response {
             p.illust__meta {
                 @if date.is_ok() {
                     time datetime=(&artwork.create_date) {
-                        (date.unwrap().format("%Y-%m-%d %H:%M:%S -").to_string())
+                        (DateTimeWrapper(date.unwrap().into()))
                     }
                 }
                 svg viewBox="0 0 12 12" { path d=(&SVG_LIKE_PATH) fill="currentColor" {} }
@@ -523,7 +525,7 @@ fn handle_rss(client: &ureq::Agent, request: &rouille::Request, host: &str) -> r
                     );
                     html!(
                         h1 { (&s.title) }
-                        p { (date.format("%Y-%m-%d %H:%M:%S").to_string()) }
+                        p { (DateTimeWrapper(date.into())) }
                         @match s.illust_type {
                             2 => {
                                 img src=(format!("{}_master1200.jpg", img_base)) alt=(s.id);
