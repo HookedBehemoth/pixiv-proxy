@@ -5,7 +5,8 @@ use serde::Deserialize;
 
 #[derive(Deserialize)]
 pub struct PixivIllustrations {
-    illusts: HashMap<u32, ()>,
+    illusts: serde_json::Value,
+    manga: serde_json::Value,
 }
 
 // https://www.pixiv.net/ajax/user/3384404/profile/all?lang=en
@@ -17,7 +18,20 @@ pub fn fetch_user_illust_ids(client: &ureq::Agent, user_id: &str) -> Result<Vec<
 
     let ids: PixivIllustrations = fetch(client, &url)?;
 
-    let mut ids: Vec<u32> = ids.illusts.into_iter().map(|(k, _)| k).collect();
+    let works_iter = ids
+        .illusts
+        .as_object()
+        .map(|m| m.into_iter().map(|(k, _)| k.parse::<u32>().unwrap()));
+    let manga_iter = ids
+        .manga
+        .as_object()
+        .map(|m| m.into_iter().map(|(k, _)| k.parse::<u32>().unwrap()));
+    let mut ids = match (works_iter, manga_iter) {
+        (Some(works), Some(manga)) => works.chain(manga).collect(),
+        (Some(works), None) => works.collect(),
+        (None, Some(manga)) => manga.collect(),
+        (None, None) => vec![],
+    };
 
     ids.sort_unstable();
     ids.reverse();
@@ -36,6 +50,10 @@ pub fn fetch_user_illustrations(
     user_id: &str,
     ids: &[u32],
 ) -> Result<Vec<PixivSearchResult>, ApiError> {
+    if ids.len() == 0 {
+        return Ok(vec![]);
+    }
+
     let url = format!("https://www.pixiv.net/ajax/user/{}/profile/illusts?{}&work_category=illust&is_first_page=0&lang=en", 
         user_id,
         ids.iter()
