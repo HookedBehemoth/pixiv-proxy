@@ -7,13 +7,14 @@ mod util;
 
 use api::{
     artwork::fetch_artwork,
+    comments::fetch_comments,
     common::PixivSearchResult,
     error::ApiError,
     ranking::fetch_ranking,
     search::fetch_search,
     user::{fetch_user_illust_ids, fetch_user_illustrations, fetch_user_profile},
 };
-use imageproxy::handle_imageproxy;
+use imageproxy::{handle_imageproxy, handle_stamp};
 use maud::{html, PreEscaped};
 use redirect::{redirect_fanbox, redirect_jump, redirect_legacy_illust};
 use rouille::router;
@@ -148,6 +149,9 @@ fn main() {
             (GET) (/rss) => { handle_rss(&client, request, &host) },
             (GET) (/about) => { render_about() },
 
+            (GET) (/comments/{id: u32}) => { handle_comments(&client, request, id) },
+            (GET) (/stamp/{id: u32}) => { handle_stamp(&client, id) },
+
             (GET) (/fanbox/creator/{id: u32}) => { redirect_fanbox(&client, id) },
             _ => {
                 /* Just matching manually now... */
@@ -220,7 +224,7 @@ fn handle_scroll(client: &ureq::Agent, request: &rouille::Request) -> rouille::R
         html! {
             h1 { (&query) }
             p { (content.illust_manga.total) }
-            ul.scroll {
+            ul.scroll.artworks {
                 @for illust in content.illust_manga.data.iter() {
                     li {
                         h2 { a href=(format!("/artworks/{}", illust.id)) { (illust.title) } }
@@ -389,7 +393,7 @@ fn handle_artwork(client: &ureq::Agent, id: u32) -> rouille::Response {
                 (artwork.view_count)
             }
             /* Images */
-            div.illust__images {
+            div.artworks {
                 @match artwork.illust_type {
                     2 => {
                         @let src = format!("/ugoira/{}", id);
@@ -405,6 +409,11 @@ fn handle_artwork(client: &ureq::Agent, id: u32) -> rouille::Response {
                     }
                 }
             }
+            /* Comments */
+            button id="button" type="button" onclick=(include_str!("comments.js")) {
+                "Load Comments"
+            }
+            div id="holder" {}
         },
         html! {
             meta name="twitter:title" content=(&artwork.illust_title);
@@ -594,6 +603,52 @@ fn handle_rss(client: &ureq::Agent, request: &rouille::Request, host: &str) -> r
         data: rouille::ResponseBody::from_string(content),
         upgrade: None,
     }
+}
+
+fn handle_comments(client: &ureq::Agent, request: &rouille::Request, id: u32) -> rouille::Response {
+    let offset = get_param_or_num!(request, "offset", 0);
+    let limit = get_param_or_num!(request, "limit", 100);
+    let comments = match fetch_comments(client, id, offset, limit) {
+        Ok(comments) => comments,
+        Err(err) => {
+            let doc = html! {
+                "failed to read comments: "
+
+                @match &err {
+                    ApiError::External(code, message) => (*code) " " (message),
+                    ApiError::Internal(message) => (500) " " (message),
+                }
+            };
+            return rouille::Response::html(doc.into_string());
+        }
+    };
+    let doc = html! {
+        ul.comments {
+            @for comment in comments.comments {
+                li {
+                    @let user = format!("/users/{}", comment.user_id);
+                    @let img = util::image_to_proxy(&comment.img);
+                    div.pfp {
+                        a href=(&user) {
+                            img src=(&img) width="40" loading="lazy";
+                        }
+                    }
+                    div.comment {
+                        h3 { a href=(&user) { (&comment.user_name) } }
+                        @if let Some(stamp) = comment.stamp_id {
+                            @let stamp_url = format!("/stamp/{}", stamp);
+                            img.content src=(&stamp_url) width="80" height="80" loading="lazy";
+                        } @else {
+                            p.content { (&comment.comment) }
+                        }
+                        p.date { (&comment.comment_date) }
+                    }
+                }
+            }
+        }
+    };
+    // let doc = document!("shit", doc);
+    rouille::Response::html(doc.into_string())
 }
 
 fn render_list(list: &[PixivSearchResult]) -> maud::Markup {

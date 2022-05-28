@@ -4,6 +4,20 @@ use std::borrow::Cow;
 pub fn handle_imageproxy(client: &ureq::Agent, path: &str) -> Response {
     const OFFSET: usize = "/imageproxy/".len();
     let url = format!("https://i.pximg.net/{}", &path[OFFSET..]);
+
+    proxy(client, &url)
+}
+
+pub fn handle_stamp(client: &ureq::Agent, id: u32) -> rouille::Response {
+    let url = format!(
+        "https://s.pximg.net/common/images/stamp/generated-stamps/{}_s.jpg?20180605",
+        id
+    );
+
+    proxy(client, &url)
+}
+
+fn proxy(client: &ureq::Agent, url: &str) -> Response {
     let response = client.get(&url).call().unwrap();
 
     let headers = response

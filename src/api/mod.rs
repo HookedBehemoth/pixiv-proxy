@@ -1,4 +1,5 @@
 pub mod artwork;
+pub mod comments;
 pub mod common;
 pub mod error;
 mod fetch;

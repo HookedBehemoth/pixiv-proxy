@@ -117,11 +117,14 @@ main {
   }
 }
 
-img,
-video {
-  max-width: 100%;
-  height: auto;
-  object-fit: scale-down;
+.artworks {
+  text-align: center;
+  img,
+  video {
+    max-width: 100%;
+    height: auto;
+    object-fit: scale-down;
+  }
 }
 
 footer {
@@ -150,10 +153,6 @@ footer {
       margin: 0px 5px;
       width: 12px;
     }
-  }
-
-  &__images {
-    text-align: center;
   }
 }
 
@@ -211,5 +210,27 @@ img.logo {
     border-radius: 16px;
     margin: 16px 0px;
     padding: 10px;
+  }
+}
+
+.comments {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 14px;
+  li {
+    display: flex;
+    div.pfp {
+      margin: 0 8px 0px 0px;
+    }
+    h3 {
+      margin: 0;
+    }
+    .content {
+      margin: 8px 0;
+    }
+    .date {
+      margin: 0;
+    }
   }
 }

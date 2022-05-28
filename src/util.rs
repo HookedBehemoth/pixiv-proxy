@@ -7,7 +7,12 @@ pub fn truncate(s: &str, max_chars: usize) -> &str {
 pub fn image_to_proxy(image: &str) -> String {
     image.replace("https://i.pximg.net/", "/imageproxy/")
 }
-pub fn scale_by_aspect_ratio(width: u32, height: u32, max_width: u32, max_height: u32) -> (u32, u32) {
+pub fn scale_by_aspect_ratio(
+    width: u32,
+    height: u32,
+    max_width: u32,
+    max_height: u32,
+) -> (u32, u32) {
     if width < max_width && height < max_height {
         return (width, height);
     }
