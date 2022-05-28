@@ -647,7 +647,7 @@ fn render_options(tag: &str, mode: &str, order: &str, search_mode: &str) -> maud
 
     html! {
         form action="/search" method="get" {
-            input type="text" name="q" placeholder="Keywords..." value=(&tag);
+            input type="text" name="q" placeholder="Keywords..." value=(&tag) required;
             select name="mode" {
                 (make_option("All", "all", mode));
                 (make_option("Safe", "safe", mode));
