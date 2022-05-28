@@ -396,8 +396,12 @@ fn handle_artwork(client: &ureq::Agent, id: u32) -> rouille::Response {
             div.artworks {
                 @match artwork.illust_type {
                     2 => {
-                        @let src = format!("/ugoira/{}", id);
-                        video poster=(&image) src=(&src) controls autoplay muted loop playsinline {}
+                        @if cfg!(feature = "ugoira") {
+                            @let src = format!("/ugoira/{}", id);
+                            video poster=(&image) src=(&src) controls autoplay muted loop playsinline {}
+                        } @else {
+                            img src=(&image) alt="";
+                        }
                     },
                     _ => @for url in std::iter::once(image.clone())
                         .chain(

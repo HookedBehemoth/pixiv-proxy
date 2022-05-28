@@ -1,10 +1,11 @@
-use crate::api::ugoira::{fetch_ugoira_meta, UgoiraFrame};
-use std::{
-    io::BufReader,
-    io::{Cursor, Read, Seek, Write},
-};
-
+#[cfg(feature = "ugoira")]
 pub fn handle_ugoira(client: &ureq::Agent, id: u32) -> rouille::Response {
+    use crate::api::ugoira::{fetch_ugoira_meta, UgoiraFrame};
+    use std::{
+        io::BufReader,
+        io::{Cursor, Read, Seek, Write},
+    };
+
     let meta = match fetch_ugoira_meta(client, id) {
         Ok(meta) => meta,
         Err(_) => {
@@ -102,4 +103,9 @@ pub fn handle_ugoira(client: &ureq::Agent, id: u32) -> rouille::Response {
 
     rouille::Response::from_data("video/mp4", opaque.writer.into_inner())
         .with_public_cache(365 * 24 * 60 * 60)
+}
+
+#[cfg(not(feature = "ugoira"))]
+pub fn handle_ugoira(_: &ureq::Agent, _: u32) -> rouille::Response {
+    rouille::Response::empty_404().with_status_code(418)
 }

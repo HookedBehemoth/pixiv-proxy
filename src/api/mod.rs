@@ -6,5 +6,6 @@ mod fetch;
 pub mod ranking;
 pub mod search;
 pub mod tags;
+#[cfg(feature = "ugoira")]
 pub mod ugoira;
 pub mod user;

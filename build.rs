@@ -1,9 +1,12 @@
 use glob::glob;
 use std::env;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
-fn main() {
+#[cfg(feature = "ugoira")]
+fn compile_ugoira() {
+    use std::path::Path;
+
     let is_debug = env::var_os("PROFILE") == Some("debug".into());
 
     let mut build = cc::Build::new();
@@ -37,6 +40,10 @@ fn main() {
     for lib in &["avcodec", "avformat", "avutil", "swresample", "swscale"] {
         println!("cargo:rustc-link-lib={}", lib);
     }
+}
+
+fn compile_css() {
+    let is_debug = env::var_os("PROFILE") == Some("debug".into());
 
     let src: &str = "sass/main.scss";
     let dst: &str = "main.css";
@@ -55,4 +62,11 @@ fn main() {
     let css = grass::from_path(src, &options).unwrap();
     let dst = out_dir.join(dst);
     fs::write(dst, &css).unwrap();
+}
+
+fn main() {
+    #[cfg(feature = "ugoira")]
+    compile_ugoira();
+
+    compile_css();
 }
