@@ -24,6 +24,7 @@ pub struct Artwork {
     pub alt: String,
     pub urls: PixivUrls,
     pub tags: Tags,
+    pub comment_count: u32,
 }
 
 pub fn fetch_artwork(client: &ureq::Agent, id: &str) -> Result<Artwork, ApiError> {

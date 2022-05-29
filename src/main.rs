@@ -414,10 +414,12 @@ fn handle_artwork(client: &ureq::Agent, id: u32) -> rouille::Response {
                 }
             }
             /* Comments */
-            button id="button" type="button" onclick=(include_str!("comments.js")) {
-                "Load Comments"
+            @if artwork.comment_count > 0 {
+                button id="button" type="button" onclick=(include_str!("comments.js")) {
+                    "Load Comments"
+                }
+                div id="holder" {}
             }
-            div id="holder" {}
         },
         html! {
             meta name="twitter:title" content=(&artwork.illust_title);
