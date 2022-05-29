@@ -18,7 +18,10 @@ pub fn handle_stamp(client: &ureq::Agent, id: u32) -> rouille::Response {
 }
 
 fn proxy(client: &ureq::Agent, url: &str) -> Response {
-    let response = client.get(url).call().unwrap();
+    let response = match client.get(url).call() {
+        Ok(response) => response,
+        Err(_) => return Response::empty_404(),
+    };
 
     let headers = response
         .headers_names()
