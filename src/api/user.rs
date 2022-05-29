@@ -50,7 +50,7 @@ pub fn fetch_user_illustrations(
     user_id: &str,
     ids: &[u32],
 ) -> Result<Vec<PixivSearchResult>, ApiError> {
-    if ids.len() == 0 {
+    if ids.is_empty() {
         return Ok(vec![]);
     }
 
