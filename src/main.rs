@@ -445,7 +445,7 @@ fn handle_artwork(client: &ureq::Agent, id: u32) -> rouille::Response {
             /* Insert javascript if needed */
             @if artwork.comment_count > 0 {
                 script {
-                    (include_str!("dynamic.js"))
+                    (PreEscaped(include_str!("dynamic.js")))
                 }
             }
         }

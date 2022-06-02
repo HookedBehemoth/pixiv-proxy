@@ -31,12 +31,6 @@ a {
   }
 }
 
-.byline {
-  color: var(--fg_faded);
-  font-size: 14px;
-  margin: 0 0 6px;
-}
-
 main {
   background-color: var(--bg_panel);
   padding: 20px;
@@ -47,78 +41,9 @@ main {
   box-shadow: 0 0 1em rgba(0, 0, 0, 0.2);
 }
 
-.search {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  grid-gap: 0.5rem;
-  list-style: none;
-  padding: 0px;
-
-  li {
-    width: 200px;
-    height: 240px;
-    position: relative;
-    margin: auto;
-    line-height: normal;
-  }
-
-  img {
-    border-radius: 6px;
-  }
-
-  a {
-    font-size: 16px;
-    color: var(--fg_color);
-  }
-
-  &__hover {
-    padding: 0px 6px;
-    font-weight: bold;
-    font-size: 10px;
-    line-height: 16px;
-    position: absolute;
-    margin: 6px;
-  }
-
-  &__warn {
-    color: white;
-    background: var(--accent);
-    border-radius: 3px;
-  }
-
-  &__count {
-    color: white;
-    fill: white;
-    background: rgba(0, 0, 0, 0.32);
-    border-radius: 10px;
-    right: 0px;
-
-    svg {
-      width: 9px;
-      height: 9px;
-      margin-right: 5px;
-    }
-  }
-
-  &__play {
-    width: 35px;
-    height: 35px;
-    position: absolute;
-    left: 100px;
-    top: 100px;
-    transform: translate(-50%, -50%);
-  }
-}
-
-.ranking {
-  li {
-    height: auto;
-    text-align: center;
-  }
-}
-
 .artworks {
   text-align: center;
+
   img,
   video {
     max-width: 100%;
@@ -139,101 +64,11 @@ footer {
   }
 }
 
-.illust {
-  &__author {
-    font-size: 14px;
-    margin: 0px;
-  }
-
-  &__meta {
-    font-size: 14px;
-    margin: 10px 0px;
-
-    svg {
-      margin: 0px 5px;
-      width: 12px;
-    }
-  }
-}
-
-.tags {
-  margin: 0px;
-  list-style: none;
-  padding-left: 0px;
-  line-height: normal;
-
-  li {
-    font-size: 14px;
-    display: inline-block;
-    margin: 0px 12px 0px 0px;
-
-    span {
-      font-size: 12px;
-      margin: 0px 3px;
-    }
-  }
-}
-
 nav {
   text-align: center;
 
   a,
   span {
     margin: 0px 10px;
-  }
-}
-
-img.logo {
-  float: left;
-  margin: 0px 10px 10px 0px;
-}
-
-.author {
-  overflow: auto;
-
-  p {
-    font-size: 14px;
-  }
-}
-
-.scroll {
-  list-style: none;
-  padding: 0px;
-  text-align: center;
-
-  h2,
-  p {
-    margin: 0px;
-  }
-  li {
-    border: solid #303030;
-    border-radius: 16px;
-    margin: 16px 0px;
-    padding: 10px;
-  }
-}
-
-.comments {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  font-size: 14px;
-  li {
-    display: flex;
-    margin: 8px 0;
-    div.pfp {
-      margin: 0 8px 0px 0px;
-    }
-    h3 {
-      margin: 0;
-    }
-    .content {
-      margin: 4px 0;
-      white-space: pre-wrap;
-    }
-    .date {
-      margin: 0;
-      color: grey;
-    }
   }
 }

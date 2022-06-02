@@ -1,0 +1,40 @@
+.illust {
+    &__author {
+        font-size: 14px;
+        margin: 0px;
+    }
+
+    &__meta {
+        font-size: 14px;
+        margin: 10px 0px;
+
+        svg {
+            margin: 0px 5px;
+            width: 12px;
+        }
+    }
+}
+
+.byline {
+    color: var(--fg_faded);
+    font-size: 14px;
+    margin: 0 0 6px;
+}
+
+.tags {
+    margin: 0px;
+    list-style: none;
+    padding-left: 0px;
+    line-height: normal;
+
+    li {
+        font-size: 14px;
+        display: inline-block;
+        margin: 0px 12px 0px 0px;
+
+        span {
+            font-size: 12px;
+            margin: 0px 3px;
+        }
+    }
+}

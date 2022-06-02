@@ -1,0 +1,17 @@
+.scroll {
+    list-style: none;
+    padding: 0px;
+    text-align: center;
+
+    h2,
+    p {
+        margin: 0px;
+    }
+
+    li {
+        border: solid #303030;
+        border-radius: 16px;
+        margin: 16px 0px;
+        padding: 10px;
+    }
+}

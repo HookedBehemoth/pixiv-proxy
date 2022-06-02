@@ -1,0 +1,19 @@
+@keyframes spinner {
+    0% {
+        transform: rotate(0deg)
+    }
+
+    100% {
+        transform: rotate(360deg)
+    }
+}
+
+.spinner {
+    margin: 10px auto 0 auto;
+    border: solid 5px var(--fg_faded);
+    border-bottom-color: var(--accent);
+    animation: spinner 1s infinite linear;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+}
