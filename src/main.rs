@@ -7,7 +7,7 @@ mod util;
 
 use api::{
     artwork::fetch_artwork,
-    comments::fetch_comments,
+    comments::{fetch_comments, fetch_replies},
     common::PixivSearchResult,
     error::ApiError,
     ranking::fetch_ranking,
@@ -17,9 +17,9 @@ use api::{
 use imageproxy::{handle_imageproxy, handle_stamp};
 use maud::{html, PreEscaped};
 use redirect::{redirect_fanbox, redirect_jump, redirect_legacy_illust};
+use render::datetime::DateTimeWrapper;
 use rouille::router;
 use ugoira::handle_ugoira;
-use render::{datetime::DateTimeWrapper};
 
 const CSS: &str = include_str!(concat!(env!("OUT_DIR"), "/main.css"));
 const FAVICON: &[u8] = include_bytes!("../static/favicon.ico");
@@ -150,6 +150,7 @@ fn main() {
             (GET) (/about) => { render_about() },
 
             (GET) (/comments/{id: u32}) => { handle_comments(&client, request, id) },
+            (GET) (/replies/{id: u32}) => { handle_reply(&client, request, id) },
             (GET) (/stamp/{id: u32}) => { handle_stamp(&client, id) },
 
             (GET) (/fanbox/creator/{id: u32}) => { redirect_fanbox(&client, id) },
@@ -415,10 +416,11 @@ fn handle_artwork(client: &ureq::Agent, id: u32) -> rouille::Response {
             }
             /* Comments */
             @if artwork.comment_count > 0 {
-                button id="button" type="button" onclick=(include_str!("comments.js")) {
-                    "Load Comments"
+                div {
+                    button endpoint=(format!("/comments/{}", id)) type="button" onclick="inject(this)" {
+                        "Load Comments"
+                    }
                 }
-                div id="holder" {}
             }
         },
         html! {
@@ -440,6 +442,12 @@ fn handle_artwork(client: &ureq::Agent, id: u32) -> rouille::Response {
             }
             @let description = util::truncate(&artwork.description, 200);
             meta property="og:description" content=(&description);
+            /* Insert javascript if needed */
+            @if artwork.comment_count > 0 {
+                script {
+                    (include_str!("dynamic.js"))
+                }
+            }
         }
     };
 
@@ -614,8 +622,8 @@ fn handle_rss(client: &ureq::Agent, request: &rouille::Request, host: &str) -> r
 fn handle_comments(client: &ureq::Agent, request: &rouille::Request, id: u32) -> rouille::Response {
     let offset = get_param_or_num!(request, "offset", 0);
     let limit = get_param_or_num!(request, "limit", 100);
-    let comments = match fetch_comments(client, id, offset, limit) {
-        Ok(comments) => comments,
+    let roots = match fetch_comments(client, id, offset, limit) {
+        Ok(roots) => roots,
         Err(err) => {
             let doc = html! {
                 "failed to read comments: "
@@ -630,30 +638,47 @@ fn handle_comments(client: &ureq::Agent, request: &rouille::Request, id: u32) ->
     };
     let doc = html! {
         ul.comments {
-            @for comment in comments.comments {
-                li {
-                    @let user = format!("/users/{}", comment.user_id);
-                    @let img = util::image_to_proxy(&comment.img);
-                    div.pfp {
-                        a href=(&user) {
-                            img src=(&img) width="40" loading="lazy";
-                        }
-                    }
-                    div.comment {
-                        h3 { a href=(&user) { (&comment.user_name) } }
-                        @if let Some(stamp) = comment.stamp_id {
-                            @let stamp_url = format!("/stamp/{}", stamp);
-                            img.content src=(&stamp_url) width="80" height="80" loading="lazy";
-                        } @else {
-                            p.content { (&comment.comment) }
-                        }
-                        p.date { (&comment.comment_date) }
-                    }
-                }
+            @for comment in roots.comments {
+                (&comment)
+            }
+        }
+        @if roots.has_next {
+            button endpoint=(format!("/comments/{}?offset={}&limit={}", id, offset + limit, limit)) onclick="inject(this)" {
+                "Load more..."
             }
         }
     };
-    // let doc = document!("shit", doc);
+    rouille::Response::html(doc.into_string())
+}
+
+fn handle_reply(client: &ureq::Agent, request: &rouille::Request, id: u32) -> rouille::Response {
+    let page = get_param_or_num!(request, "page", 1);
+    let replies = match fetch_replies(client, id, page) {
+        Ok(replies) => replies,
+        Err(err) => {
+            let doc = html! {
+                "failed to read comments: "
+
+                @match &err {
+                    ApiError::External(code, message) => (*code) " " (message),
+                    ApiError::Internal(message) => (500) " " (message),
+                }
+            };
+            return rouille::Response::html(doc.into_string());
+        }
+    };
+    let doc = html! {
+        @if replies.has_next {
+            button endpoint=(format!("/replies/{}?page={}", id, page + 1)) onclick="inject(this, false)" {
+                "Load older replies"
+            }
+        }
+        ul.comments {
+            @for comment in replies.comments.iter().rev() {
+                (comment)
+            }
+        }
+    };
     rouille::Response::html(doc.into_string())
 }
 
