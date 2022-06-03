@@ -1,8 +1,21 @@
+.comments_wrapper {
+    text-align: center;
+
+    button {
+        padding: 12px 50px;
+        border-radius: 25px;
+        color: var(--accent);
+        border-color: var(--accent);
+        background: transparent;
+    }
+}
+
 .comments {
     list-style: none;
     margin: 0;
     padding: 0;
     font-size: 14px;
+    text-align: initial;
 
     li {
         display: flex;

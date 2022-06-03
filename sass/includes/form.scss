@@ -1,0 +1,10 @@
+form input,
+form select,
+form button {
+    background: transparent;
+    color: var(--fg_color);
+    border-radius: 8px;
+    padding: 4px;
+    margin: 0 4px;
+    border-color: var(--accent);
+}

@@ -420,7 +420,7 @@ fn handle_artwork(client: &ureq::Agent, id: u64) -> rouille::Response {
             }
             /* Comments */
             @if artwork.comment_count > 0 {
-                div {
+                div.comments_wrapper {
                     button endpoint=(format!("/comments/{}", id)) type="button" onclick="inject(this)" {
                         "Load Comments"
                     }
