@@ -125,6 +125,8 @@ fn main() {
         router!(request,
             (GET) (/) => { handle_ranking(&client, request) },
             (GET) (/en/) => { handle_ranking(&client, request) },
+            (GET) (/en/tags/{tag: String}) => { handle_search(&client, request, &tag) },
+            (GET) (/tags/{tag: String}) => { handle_search(&client, request, &tag) },
             (GET) (/en/tags/{tag: String}/artworks) => { handle_search(&client, request, &tag) },
             (GET) (/tags/{tag: String}/artworks) => { handle_search(&client, request, &tag) },
             (GET) (/search) => {
