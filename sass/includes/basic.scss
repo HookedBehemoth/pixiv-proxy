@@ -48,7 +48,7 @@ main {
   video {
     max-width: 100%;
     height: auto;
-    object-fit: scale-down;
+    object-fit: contain;
   }
 }
 
