@@ -29,14 +29,12 @@ pub fn handle_ugoira(client: &ureq::Agent, id: u64) -> rouille::Response {
     };
 
     unsafe extern "C" fn read(opaque: *mut libc::c_void, ptr: *mut u8, sz: i32) -> i32 {
-        // println!("read: {}", sz);
         let opaque = opaque as *mut Opaque<'_>;
         let slice = std::slice::from_raw_parts_mut(ptr, sz as usize);
         let file = (*opaque).file.as_mut().unwrap();
         file.read(slice).unwrap() as i32
     }
     unsafe extern "C" fn next(opaque: *mut libc::c_void) {
-        // println!("next");
         let opaque = opaque as *mut Opaque<'_>;
         let reader = &mut (*opaque).reader;
         (*opaque).file = Some(
@@ -47,14 +45,12 @@ pub fn handle_ugoira(client: &ureq::Agent, id: u64) -> rouille::Response {
     }
 
     unsafe extern "C" fn write(opaque: *mut libc::c_void, ptr: *mut u8, sz: i32) -> i32 {
-        // println!("write: {}", sz);
         let opaque = opaque as *mut Opaque<'_>;
         let slice = std::slice::from_raw_parts(ptr, sz as usize);
         (*opaque).writer.write_all(slice).unwrap();
         sz
     }
     unsafe extern "C" fn seek(opaque: *mut libc::c_void, offset: i64, whence: i32) -> i64 {
-        // println!("seek: {} {}", offset, whence);
         let opaque = opaque as *mut Opaque<'_>;
         let position = match whence {
             0 => std::io::SeekFrom::Start(offset as u64),
@@ -64,8 +60,6 @@ pub fn handle_ugoira(client: &ureq::Agent, id: u64) -> rouille::Response {
         };
         (*opaque).writer.seek(position).unwrap() as i64
     }
-
-    let start = std::time::Instant::now();
 
     extern "C" {
         fn convert(
@@ -89,8 +83,6 @@ pub fn handle_ugoira(client: &ureq::Agent, id: u64) -> rouille::Response {
             meta.frames.len(),
         )
     };
-    let duration = start.elapsed();
-    println!("{:?}", duration);
 
     if ret != 0 {
         return rouille::Response {

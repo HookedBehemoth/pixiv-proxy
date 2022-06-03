@@ -89,8 +89,6 @@ pub fn fetch_user_bookmarks(
 ) -> Result<PixivBookmarks, ApiError> {
     let url = format!("https://www.pixiv.net/ajax/user/{}/illusts/bookmarks?tag={}&offset={}&limit={}&rest=show&lang=en", user_id, tag, offset, limit);
 
-    println!("{}", url);
-
     fetch(client, &url)
 }
 
