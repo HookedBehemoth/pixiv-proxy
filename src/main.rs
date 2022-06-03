@@ -732,9 +732,10 @@ fn render_list(list: &[PixivSearchResult]) -> maud::Markup {
         ul.search {
             @for artwork in list {
                 @let link = format!("/artworks/{}", artwork.id);
+                @let link = if !artwork.is_masked { Some(&link) } else { None };
                 @let img = util::image_to_proxy(&artwork.url);
                 li {
-                    a href=(&link) {
+                    a href=[link] {
                         @if artwork.r18 == 1 {
                             div.search__hover.search__warn { "R-18" }
                         }
@@ -749,7 +750,7 @@ fn render_list(list: &[PixivSearchResult]) -> maud::Markup {
                         }
                         img src=(&img) width="200" height="200" alt=(&artwork.title);
                     }
-                    a href=(&link) { (&artwork.title) }
+                    a href=[link] { (&artwork.title) }
                 }
             }
         }

@@ -26,4 +26,5 @@ pub struct PixivSearchResult {
     pub url: String,
     pub width: u32,
     pub height: u32,
+    pub is_masked: bool,
 }
