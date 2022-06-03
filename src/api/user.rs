@@ -1,16 +1,26 @@
 use std::collections::HashMap;
 
-use super::{common::PixivSearchResult, error::ApiError, fetch::fetch};
+use super::{
+    common::PixivSearchResult,
+    de::deserialize_map_with_empty_values_as_list_thats_actually_a_list_if_its_empty,
+    error::ApiError, fetch::fetch,
+};
 use serde::Deserialize;
 
 #[derive(Deserialize)]
 pub struct PixivIllustrations {
-    illusts: serde_json::Value,
-    manga: serde_json::Value,
+    #[serde(
+        deserialize_with = "deserialize_map_with_empty_values_as_list_thats_actually_a_list_if_its_empty"
+    )]
+    illusts: Vec<u64>,
+    #[serde(
+        deserialize_with = "deserialize_map_with_empty_values_as_list_thats_actually_a_list_if_its_empty"
+    )]
+    manga: Vec<u64>,
 }
 
 // https://www.pixiv.net/ajax/user/3384404/profile/all?lang=en
-pub fn fetch_user_illust_ids(client: &ureq::Agent, user_id: u64) -> Result<Vec<u32>, ApiError> {
+pub fn fetch_user_illust_ids(client: &ureq::Agent, user_id: u64) -> Result<Vec<u64>, ApiError> {
     let url = format!(
         "https://www.pixiv.net/ajax/user/{}/profile/all?lang=en",
         user_id
@@ -18,20 +28,11 @@ pub fn fetch_user_illust_ids(client: &ureq::Agent, user_id: u64) -> Result<Vec<u
 
     let ids: PixivIllustrations = fetch(client, &url)?;
 
-    let works_iter = ids
+    let mut ids: Vec<u64> = ids
         .illusts
-        .as_object()
-        .map(|m| m.into_iter().map(|(k, _)| k.parse::<u32>().unwrap()));
-    let manga_iter = ids
-        .manga
-        .as_object()
-        .map(|m| m.into_iter().map(|(k, _)| k.parse::<u32>().unwrap()));
-    let mut ids = match (works_iter, manga_iter) {
-        (Some(works), Some(manga)) => works.chain(manga).collect(),
-        (Some(works), None) => works.collect(),
-        (None, Some(manga)) => manga.collect(),
-        (None, None) => vec![],
-    };
+        .into_iter()
+        .chain(ids.manga.into_iter())
+        .collect();
 
     ids.sort_unstable();
     ids.reverse();
@@ -41,14 +42,14 @@ pub fn fetch_user_illust_ids(client: &ureq::Agent, user_id: u64) -> Result<Vec<u
 
 #[derive(Deserialize)]
 struct PixivWorks {
-    pub works: HashMap<u32, PixivSearchResult>,
+    pub works: HashMap<u64, PixivSearchResult>,
 }
 
 // https://www.pixiv.net/ajax/user/3384404/profile/illusts?ids[]=84485304&ids[]=84473597&work_category=illust&is_first_page=0&lang=en
 pub fn fetch_user_illustrations(
     client: &ureq::Agent,
     user_id: u64,
-    ids: &[u32],
+    ids: &[u64],
 ) -> Result<Vec<PixivSearchResult>, ApiError> {
     if ids.is_empty() {
         return Ok(vec![]);
@@ -64,7 +65,7 @@ pub fn fetch_user_illustrations(
 
     let elements: PixivWorks = fetch(client, &url)?;
 
-    let mut elements: Vec<(u32, PixivSearchResult)> = elements.works.into_iter().collect();
+    let mut elements: Vec<(u64, PixivSearchResult)> = elements.works.into_iter().collect();
     elements.sort_unstable_by_key(|s| s.0);
     elements.reverse();
     let elements = elements.into_iter().map(|(_, s)| s).collect();

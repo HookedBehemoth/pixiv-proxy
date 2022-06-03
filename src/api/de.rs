@@ -27,3 +27,41 @@ where
 
     deserializer.deserialize_any(StringOrNumberVisitor)
 }
+
+pub fn deserialize_map_with_empty_values_as_list_thats_actually_a_list_if_its_empty<'de, D>(
+    deserializer: D,
+) -> Result<Vec<u64>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    struct MapOrListVisitor;
+
+    impl<'de> serde::de::Visitor<'de> for MapOrListVisitor {
+        type Value = Vec<u64>;
+
+        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+            formatter.write_str("map or list")
+        }
+
+        // Note: Always empty
+        fn visit_seq<A>(self, _: A) -> Result<Self::Value, A::Error>
+        where
+            A: serde::de::SeqAccess<'de>,
+        {
+            Ok(vec![])
+        }
+
+        fn visit_map<A>(self, mut value: A) -> Result<Self::Value, A::Error>
+        where
+            A: serde::de::MapAccess<'de>,
+        {
+            let mut keys = vec![];
+            while let Ok(Some((key, ()))) = value.next_entry() {
+                keys.push(key);
+            }
+            Ok(keys)
+        }
+    }
+
+    deserializer.deserialize_any(MapOrListVisitor)
+}
