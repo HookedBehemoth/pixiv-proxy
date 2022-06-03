@@ -1,5 +1,5 @@
 #[cfg(feature = "ugoira")]
-pub fn handle_ugoira(client: &ureq::Agent, id: u32) -> rouille::Response {
+pub fn handle_ugoira(client: &ureq::Agent, id: u64) -> rouille::Response {
     use crate::api::ugoira::{fetch_ugoira_meta, UgoiraFrame};
     use std::{
         io::BufReader,
@@ -106,6 +106,6 @@ pub fn handle_ugoira(client: &ureq::Agent, id: u32) -> rouille::Response {
 }
 
 #[cfg(not(feature = "ugoira"))]
-pub fn handle_ugoira(_: &ureq::Agent, _: u32) -> rouille::Response {
+pub fn handle_ugoira(_: &ureq::Agent, _: u64) -> rouille::Response {
     rouille::Response::empty_404().with_status_code(418)
 }

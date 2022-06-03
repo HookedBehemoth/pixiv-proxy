@@ -12,7 +12,9 @@ use api::{
     error::ApiError,
     ranking::fetch_ranking,
     search::fetch_search,
-    user::{fetch_user_illust_ids, fetch_user_illustrations, fetch_user_profile},
+    user::{
+        fetch_user_bookmarks, fetch_user_illust_ids, fetch_user_illustrations, fetch_user_profile,
+    },
 };
 use imageproxy::{handle_imageproxy, handle_stamp};
 use maud::{html, PreEscaped};
@@ -136,24 +138,26 @@ fn main() {
             (GET) (/scroll) => { handle_scroll(&client, request) },
 
             /* user */
-            (GET) (/en/users/{id: String}/artworks) => { handle_user(&client, request, &id) },
-            (GET) (/users/{id: String}/artworks) => { handle_user(&client, request, &id) },
-            (GET) (/en/users/{id: String}) => { handle_user(&client, request, &id) },
-            (GET) (/users/{id: String}) => { handle_user(&client, request, &id) },
+            (GET) (/en/users/{id: u64}) => { handle_user(&client, request, id, false) },
+            (GET) (/users/{id: u64}) => { handle_user(&client, request, id, false) },
+            (GET) (/en/users/{id: u64}/artworks) => { handle_user(&client, request, id, false) },
+            (GET) (/users/{id: u64}/artworks) => { handle_user(&client, request, id, false) },
+            (GET) (/en/users/{id: u64}/bookmarks/artworks) => { handle_user(&client, request, id, true) },
+            (GET) (/users/{id: u64}/bookmarks/artworks) => { handle_user(&client, request, id, true) },
 
             /* artwork */
-            (GET) (/en/artworks/{id: u32}) => { handle_artwork(&client, id) },
-            (GET) (/artworks/{id: u32}) => { handle_artwork(&client, id) },
+            (GET) (/en/artworks/{id: u64}) => { handle_artwork(&client, id) },
+            (GET) (/artworks/{id: u64}) => { handle_artwork(&client, id) },
 
-            (GET) (/ugoira/{id: u32}) => { handle_ugoira(&client, id) },
+            (GET) (/ugoira/{id: u64}) => { handle_ugoira(&client, id) },
             (GET) (/rss) => { handle_rss(&client, request, &host) },
             (GET) (/about) => { render_about() },
 
-            (GET) (/comments/{id: u32}) => { handle_comments(&client, request, id) },
-            (GET) (/replies/{id: u32}) => { handle_reply(&client, request, id) },
+            (GET) (/comments/{id: u64}) => { handle_comments(&client, request, id) },
+            (GET) (/replies/{id: u64}) => { handle_reply(&client, request, id) },
             (GET) (/stamp/{id: u32}) => { handle_stamp(&client, id) },
 
-            (GET) (/fanbox/creator/{id: u32}) => { redirect_fanbox(&client, id) },
+            (GET) (/fanbox/creator/{id: u64}) => { redirect_fanbox(&client, id) },
             _ => {
                 /* Just matching manually now... */
                 let url = request.url();
@@ -356,7 +360,7 @@ fn render_search(
     rouille::Response::html(docs.into_string())
 }
 
-fn handle_artwork(client: &ureq::Agent, id: u32) -> rouille::Response {
+fn handle_artwork(client: &ureq::Agent, id: u64) -> rouille::Response {
     let artwork = try_api!(fetch_artwork(client, &id.to_string()));
 
     let image = util::image_to_proxy(&artwork.urls.original);
@@ -368,7 +372,7 @@ fn handle_artwork(client: &ureq::Agent, id: u32) -> rouille::Response {
             /* Title */
             h1 { (&artwork.illust_title) }
             /* Author */
-            @let link = format!("/users/{}", percent_encoding::utf8_percent_encode(&artwork.user_id, percent_encoding::NON_ALPHANUMERIC));
+            @let link = format!("/users/{}", artwork.user_id);
             p.illust__author { a href=(&link) { (&artwork.user_name) } }
             /* Description */
             @if !artwork.description.is_empty() {
@@ -457,18 +461,36 @@ fn handle_artwork(client: &ureq::Agent, id: u32) -> rouille::Response {
 fn handle_user(
     client: &ureq::Agent,
     request: &rouille::Request,
-    user_id: &str,
+    user_id: u64,
+    bookmarks: bool,
 ) -> rouille::Response {
-    let user = try_api!(fetch_user_profile(client, user_id));
-    let ids = try_api!(fetch_user_illust_ids(client, user_id));
-
     let page = get_param_or_num!(request, "p", 1);
-    let count = ids.len();
-    let start = (page - 1) * 60;
-    let end = std::cmp::min(start + 60, count as u32);
-    let slice = &ids[start as usize..end as usize];
+    let tag = get_param_or_str!(request, "q", "");
 
-    let elements = try_api!(fetch_user_illustrations(client, user_id, slice));
+    let user = try_api!(fetch_user_profile(client, user_id));
+
+    let (elements, count) = if !bookmarks {
+        let ids = try_api!(fetch_user_illust_ids(client, user_id));
+
+        let count = ids.len();
+        let start = (page - 1) * 60;
+        let end = std::cmp::min(start + 60, count as u32);
+        let slice = &ids[start as usize..end as usize];
+
+        let elements = try_api!(fetch_user_illustrations(client, user_id, slice));
+
+        (elements, count)
+    } else {
+        let bookmarks = try_api!(fetch_user_bookmarks(
+            client,
+            user_id,
+            &tag,
+            (page - 1) * 60,
+            60
+        ));
+
+        (bookmarks.works, bookmarks.total)
+    };
 
     let image = util::image_to_proxy(&user.image_big);
 
@@ -482,11 +504,24 @@ fn handle_user(
                     p { (PreEscaped(&user.comment_html)) }
                 }
             }
+            div.category {
+                @if !bookmarks {
+                    div { "Artworks" }
+                    a href=(format!("/users/{}/bookmarks/artworks", user_id)) { "Bookmarks" }
+                } @else {
+                    a href=(format!("/users/{}", user_id)) { "Artworks" }
+                    div { "Bookmarks" }
+                }
+            }
             div {
                 (render_list(&elements))
             }
             @if count > 60 {
-                @let format = format!("/users/{}?p=", user_id);
+                @let format = if !bookmarks {
+                    format!("/users/{}?p=", user_id)
+                } else {
+                    format!("/users/{}/bookmarks/artworks?p=", user_id)
+                };
                 (render_nav(page, count, &format))
             }
         },
@@ -513,8 +548,9 @@ fn handle_rss(client: &ureq::Agent, request: &rouille::Request, host: &str) -> r
 
     let page = match query_type.as_str() {
         "author" => {
-            let ids = try_api!(fetch_user_illust_ids(client, &query_words));
-            try_api!(fetch_user_illustrations(client, &query_words, &ids))
+            let user_id = query_words.parse::<u64>().unwrap();
+            let ids = try_api!(fetch_user_illust_ids(client, user_id));
+            try_api!(fetch_user_illustrations(client, user_id, &ids))
         }
         _ => {
             let search = try_api!(fetch_search(
@@ -619,7 +655,7 @@ fn handle_rss(client: &ureq::Agent, request: &rouille::Request, host: &str) -> r
     }
 }
 
-fn handle_comments(client: &ureq::Agent, request: &rouille::Request, id: u32) -> rouille::Response {
+fn handle_comments(client: &ureq::Agent, request: &rouille::Request, id: u64) -> rouille::Response {
     let offset = get_param_or_num!(request, "offset", 0);
     let limit = get_param_or_num!(request, "limit", 100);
     let roots = match fetch_comments(client, id, offset, limit) {
@@ -651,7 +687,7 @@ fn handle_comments(client: &ureq::Agent, request: &rouille::Request, id: u32) ->
     rouille::Response::html(doc.into_string())
 }
 
-fn handle_reply(client: &ureq::Agent, request: &rouille::Request, id: u32) -> rouille::Response {
+fn handle_reply(client: &ureq::Agent, request: &rouille::Request, id: u64) -> rouille::Response {
     let page = get_param_or_num!(request, "page", 1);
     let replies = match fetch_replies(client, id, page) {
         Ok(replies) => replies,

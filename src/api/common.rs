@@ -1,4 +1,5 @@
 use serde::Deserialize;
+use super::de::deserialize_number_unconditionally;
 
 #[derive(Deserialize)]
 pub struct ApiResponse<T> {
@@ -10,7 +11,8 @@ pub struct ApiResponse<T> {
 #[derive(Deserialize)]
 #[serde(rename_all(deserialize = "camelCase", serialize = "snake_case"))]
 pub struct PixivSearchResult {
-    pub id: String,
+    #[serde(deserialize_with = "deserialize_number_unconditionally")]
+    pub id: u64,
     pub title: String,
     pub user_name: String,
     /* Note: This appears to always be empty */

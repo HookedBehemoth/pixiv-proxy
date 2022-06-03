@@ -9,3 +9,4 @@ pub mod tags;
 #[cfg(feature = "ugoira")]
 pub mod ugoira;
 pub mod user;
+pub mod de;

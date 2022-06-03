@@ -1,6 +1,6 @@
-use maud::{html, Markup, Render};
 use crate::api::comments::PixivComment;
 use crate::util;
+use maud::{html, Markup, Render};
 
 impl Render for &PixivComment {
     fn render(&self) -> Markup {
@@ -26,7 +26,7 @@ impl Render for &PixivComment {
                         div.replies {
                             button endpoint=(format!("/replies/{}", self.id)) onclick="inject(this)" {
                                 "Load replies"
-                            }                
+                            }
                         }
                     }
                 }

@@ -1,4 +1,4 @@
-use super::{error::ApiError, fetch::fetch};
+use super::{de::deserialize_number_unconditionally, error::ApiError, fetch::fetch};
 use serde::Deserialize;
 
 #[derive(Deserialize)]
@@ -11,10 +11,12 @@ pub struct PixivComments {
 #[derive(Deserialize)]
 #[serde(rename_all(deserialize = "camelCase", serialize = "snake_case"))]
 pub struct PixivComment {
-    pub user_id: String,
+    #[serde(deserialize_with = "deserialize_number_unconditionally")]
+    pub user_id: u64,
     pub user_name: String,
     pub img: String,
-    pub id: String,
+    #[serde(deserialize_with = "deserialize_number_unconditionally")]
+    pub id: u64,
     pub comment: String,
     pub stamp_id: Option<String>,
     pub comment_date: String,
@@ -24,7 +26,7 @@ pub struct PixivComment {
 // https://www.pixiv.net/ajax/illusts/comments/roots?illust_id=97276742&offset=0&limit=3&lang=en
 pub fn fetch_comments(
     client: &ureq::Agent,
-    id: u32,
+    id: u64,
     offset: u32,
     limit: u32,
 ) -> Result<PixivComments, ApiError> {
@@ -37,11 +39,7 @@ pub fn fetch_comments(
 }
 
 // https://www.pixiv.net/ajax/illusts/comments/replies?comment_id=137840290&page=1&lang=en
-pub fn fetch_replies(
-    client: &ureq::Agent,
-    id: u32,
-    page: u32,
-) -> Result<PixivComments, ApiError> {
+pub fn fetch_replies(client: &ureq::Agent, id: u64, page: u32) -> Result<PixivComments, ApiError> {
     let url = format!(
         "https://www.pixiv.net/ajax/illusts/comments/replies?comment_id={}&page={}&lang=en",
         id, page

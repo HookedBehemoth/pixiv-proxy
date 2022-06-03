@@ -1,4 +1,4 @@
-use super::{error::ApiError, fetch::fetch, tags::Tags};
+use super::{error::ApiError, fetch::fetch, tags::Tags, de::deserialize_number_unconditionally};
 use serde::Deserialize;
 
 #[derive(Deserialize)]
@@ -16,7 +16,8 @@ pub struct Artwork {
     pub bookmark_count: u32,
     pub view_count: u32,
     pub user_name: String,
-    pub user_id: String,
+    #[serde(deserialize_with = "deserialize_number_unconditionally")]
+    pub user_id: u64,
     pub description: String,
     pub create_date: String,
     pub width: u32,
