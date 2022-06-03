@@ -270,7 +270,7 @@ fn handle_scroll(client: &ureq::Agent, request: &rouille::Request) -> rouille::R
             }
             @if content.illust_manga.total > content.illust_manga.data.len() {
                 @let format = format!("scroll?q={}&mode={}&order={}&s_mode={}&p=", query, mode, order, search_mode);
-                (render_nav(page, content.illust_manga.total, &format))
+                (render_nav(page, content.illust_manga.total, 60, &format))
             }
         }
     };
@@ -305,7 +305,7 @@ fn handle_ranking(client: &ureq::Agent, request: &rouille::Request) -> rouille::
                 }
             }
             @let format = format!("?date={}&p=", ranking.date);
-            (render_nav(page, ranking.rank_total, &format))
+            (render_nav(page, ranking.rank_total, 50, &format))
         }
     };
 
@@ -352,7 +352,7 @@ fn render_search(
             (render_list(&search.illust_manga.data))
             @if search.illust_manga.total > 60 {
                 @let format = format!("/tags/{}/artworks?order={}&mode={}&s_mode={}&p=", tag, order, mode, search_mode);
-                (render_nav(page, search.illust_manga.total, &format))
+                (render_nav(page, search.illust_manga.total, 60, &format))
             }
         }
     };
@@ -522,7 +522,7 @@ fn handle_user(
                 } else {
                     format!("/users/{}/bookmarks/artworks?p=", user_id)
                 };
-                (render_nav(page, count, &format))
+                (render_nav(page, count, 60, &format))
             }
         },
         html! {
@@ -792,14 +792,15 @@ fn render_options(tag: &str, mode: &str, order: &str, search_mode: &str) -> maud
     }
 }
 
-fn render_nav(current_page: u32, count: usize, template: &str) -> maud::Markup {
+fn render_nav(current_page: u32, count: usize, limit: usize, template: &str) -> maud::Markup {
     html! {
-        @if count > 60 {
+        @if count > limit {
             nav {
                 @let min = 1;
-                @let max = count / 60 + 1;
+                @let max = count / limit + 1;
                 @let nav_start = std::cmp::max(min as i32, current_page as i32 - 3);
                 @let nav_end = std::cmp::min(max as i32, nav_start + 7);
+                a href=(format!("{}{}", template, min)) { "<<" }
                 @for page in nav_start..nav_end {
                     @if page as u32 == current_page {
                         span { (page) }
@@ -808,6 +809,7 @@ fn render_nav(current_page: u32, count: usize, template: &str) -> maud::Markup {
                         a href=(&link) { (page) }
                     }
                 }
+                a href=(format!("{}{}", template, max - 1)) { ">>" }
             }
         }
     }
