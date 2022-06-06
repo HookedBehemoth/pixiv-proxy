@@ -113,7 +113,7 @@ fn main() {
         ureq::AgentBuilder::new()
             .tls_config(tls_config)
             .user_agent(
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:99.0) Gecko/20100101 Firefox/99.0",
+                "Mozilla/5.0 (X11; Linux x86_64; rv:103.0) Gecko/20100101 Firefox/103.0",
             )
             .middleware(middleware)
             .redirects(0)
