@@ -1,4 +1,4 @@
-use super::{error::ApiError, fetch::fetch, tags::Tags, de::deserialize_number_unconditionally};
+use super::{de::deserialize_number_unconditionally, error::ApiError, fetch::fetch, tags::Tags};
 use serde::Deserialize;
 
 #[derive(Deserialize)]
@@ -28,8 +28,8 @@ pub struct Artwork {
     pub comment_count: u32,
 }
 
-pub fn fetch_artwork(client: &ureq::Agent, id: &str) -> Result<Artwork, ApiError> {
+pub async fn fetch_artwork(client: &awc::Client, id: u64) -> Result<Artwork, ApiError> {
     let url = format!("https://www.pixiv.net/ajax/illust/{}", id);
 
-    fetch(client, &url)
+    fetch(client, &url).await
 }

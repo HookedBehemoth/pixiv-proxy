@@ -24,8 +24,8 @@ pub struct PixivComment {
 }
 
 // https://www.pixiv.net/ajax/illusts/comments/roots?illust_id=97276742&offset=0&limit=3&lang=en
-pub fn fetch_comments(
-    client: &ureq::Agent,
+pub async fn fetch_comments(
+    client: &awc::Client,
     id: u64,
     offset: u32,
     limit: u32,
@@ -35,15 +35,19 @@ pub fn fetch_comments(
         id, offset, limit
     );
 
-    fetch(client, &url)
+    fetch(client, &url).await
 }
 
 // https://www.pixiv.net/ajax/illusts/comments/replies?comment_id=137840290&page=1&lang=en
-pub fn fetch_replies(client: &ureq::Agent, id: u64, page: u32) -> Result<PixivComments, ApiError> {
+pub async fn fetch_replies(
+    client: &awc::Client,
+    id: u64,
+    page: u32,
+) -> Result<PixivComments, ApiError> {
     let url = format!(
         "https://www.pixiv.net/ajax/illusts/comments/replies?comment_id={}&page={}&lang=en",
         id, page
     );
 
-    fetch(client, &url)
+    fetch(client, &url).await
 }

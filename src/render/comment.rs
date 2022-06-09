@@ -1,5 +1,4 @@
-use crate::api::comments::PixivComment;
-use crate::util;
+use crate::{api::comments::PixivComment, routes::imageproxy::image_to_proxy};
 use maud::{html, Markup, Render};
 
 impl Render for &PixivComment {
@@ -7,7 +6,7 @@ impl Render for &PixivComment {
         html! {
             li {
                 @let user = format!("/users/{}", self.user_id);
-                @let img = util::image_to_proxy(&self.img);
+                @let img = image_to_proxy(&self.img);
                 div.pfp {
                     a href=(&user) {
                         img src=(&img) width="40" loading="lazy";

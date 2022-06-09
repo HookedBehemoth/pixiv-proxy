@@ -20,13 +20,16 @@ pub struct PixivIllustrations {
 }
 
 // https://www.pixiv.net/ajax/user/3384404/profile/all?lang=en
-pub fn fetch_user_illust_ids(client: &ureq::Agent, user_id: u64) -> Result<Vec<u64>, ApiError> {
+pub async fn fetch_user_illust_ids(
+    client: &awc::Client,
+    user_id: u64,
+) -> Result<Vec<u64>, ApiError> {
     let url = format!(
         "https://www.pixiv.net/ajax/user/{}/profile/all?lang=en",
         user_id
     );
 
-    let ids: PixivIllustrations = fetch(client, &url)?;
+    let ids: PixivIllustrations = fetch(client, &url).await?;
 
     let mut ids: Vec<u64> = ids
         .illusts
@@ -46,8 +49,8 @@ struct PixivWorks {
 }
 
 // https://www.pixiv.net/ajax/user/3384404/profile/illusts?ids[]=84485304&ids[]=84473597&work_category=illust&is_first_page=0&lang=en
-pub fn fetch_user_illustrations(
-    client: &ureq::Agent,
+pub async fn fetch_user_illustrations(
+    client: &awc::Client,
     user_id: u64,
     ids: &[u64],
 ) -> Result<Vec<PixivSearchResult>, ApiError> {
@@ -63,7 +66,7 @@ pub fn fetch_user_illustrations(
             .join("&")
     );
 
-    let elements: PixivWorks = fetch(client, &url)?;
+    let elements: PixivWorks = fetch(client, &url).await?;
 
     let mut elements: Vec<(u64, PixivSearchResult)> = elements.works.into_iter().collect();
     elements.sort_unstable_by_key(|s| s.0);
@@ -80,8 +83,8 @@ pub struct PixivBookmarks {
 }
 
 // https://www.pixiv.net/ajax/user/42433315/illusts/bookmarks?tag=&offset=0&limit=48&rest=show&lang=en
-pub fn fetch_user_bookmarks(
-    client: &ureq::Agent,
+pub async fn fetch_user_bookmarks(
+    client: &awc::Client,
     user_id: u64,
     tag: &str,
     offset: u32,
@@ -89,7 +92,7 @@ pub fn fetch_user_bookmarks(
 ) -> Result<PixivBookmarks, ApiError> {
     let url = format!("https://www.pixiv.net/ajax/user/{}/illusts/bookmarks?tag={}&offset={}&limit={}&rest=show&lang=en", user_id, tag, offset, limit);
 
-    fetch(client, &url)
+    fetch(client, &url).await
 }
 
 #[derive(Deserialize)]
@@ -101,10 +104,10 @@ pub struct PixivUser {
 }
 
 // https://www.pixiv.net/ajax/user/38588185?full=1&lang=en
-pub fn fetch_user_profile(client: &ureq::Agent, user_id: u64) -> Result<PixivUser, ApiError> {
+pub async fn fetch_user_profile(client: &awc::Client, user_id: u64) -> Result<PixivUser, ApiError> {
     let url = format!("https://www.pixiv.net/ajax/user/{}?full=1&lang=en", user_id);
 
-    fetch(client, &url)
+    fetch(client, &url).await
 }
 
 // https://www.pixiv.net/ajax/user/38588185/works/latest?lang=en

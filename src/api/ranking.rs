@@ -1,6 +1,6 @@
 use std::{fmt, str::FromStr};
 
-use super::{error::ApiError, fetch::fetch_generic};
+use super::{error::ApiError, fetch::fetch_json};
 use serde::{
     de::{self, Visitor},
     Deserialize, Deserializer,
@@ -59,9 +59,9 @@ pub struct RankingItem {
     pub illust_upload_timestamp: u64,
 }
 
-pub fn fetch_ranking(
-    client: &ureq::Agent,
-    date: Option<String>,
+pub async fn fetch_ranking(
+    client: &awc::Client,
+    date: Option<&String>,
     page: u32,
 ) -> Result<Ranking, ApiError> {
     let date = date.map(|d| format!("&date={}", d));
@@ -71,10 +71,5 @@ pub fn fetch_ranking(
         date.unwrap_or_else(|| "".to_string())
     );
 
-    let res = fetch_generic(client, &url)?;
-
-    match res.into_json::<Ranking>() {
-        Ok(response) => Ok(response),
-        Err(err) => Err(ApiError::Internal(err.to_string())),
-    }
+    fetch_json::<Ranking>(client, &url).await
 }

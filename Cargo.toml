@@ -5,11 +5,12 @@ edition = "2021"
 
 [dependencies]
 pico-args = "0.5"
-rouille = { version = "3.5", default-features = false }
+actix-web = { version = "4.0", default-features = false, features = ["macros"] }
+awc = { version = "3.0", default-features = false, features = ["compress-gzip", "rustls"] }
+tokio = { version = "*", features = ["macros"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-maud = "0.23"
-ureq = { version = "2.4", features = ["json", "tls", "rustls"] }
+maud = { git = "https://github.com/lambda-fairy/maud", features = ["actix-web"] }
 percent-encoding = "2.1"
 rustls = "0.20"
 rustls-native-certs = "0.6"
@@ -21,7 +22,7 @@ libc = { version = "0.2", optional = true }
 
 [build-dependencies]
 cc = { version = "1.0", optional = true }
-grass = "0.11"
+grass = { version = "0.11", default-features = false }
 glob = "0.3"
 
 [features]
