@@ -61,8 +61,14 @@ async fn main() -> std::io::Result<()> {
             .service(routes::favicon::routes())
             .service(routes::sketch::routes())
             .service(routes::css::routes())
+            .default_service(web::to(route_404))
     })
     .bind(&address)?
     .run()
     .await
+}
+
+async fn route_404() -> actix_web::HttpResponse {
+    actix_web::HttpResponse::NotFound()
+        .body(render::error::render_error(404, "Resource not found").into_string())
 }
