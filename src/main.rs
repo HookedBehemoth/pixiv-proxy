@@ -60,8 +60,8 @@ async fn main() -> std::io::Result<()> {
             .service(routes::rss::routes())
             .service(routes::favicon::routes())
             .service(routes::sketch::routes())
+            .service(routes::css::routes())
     })
-    //.service(search_query))
     .bind(&address)?
     .run()
     .await

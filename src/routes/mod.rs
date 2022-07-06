@@ -1,6 +1,7 @@
 pub mod about;
 pub mod artworks;
 pub mod comments;
+pub mod css;
 pub mod favicon;
 pub mod imageproxy;
 pub mod ranking;
