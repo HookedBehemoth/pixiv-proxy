@@ -1,32 +1,50 @@
+use actix_web::{get, web, HttpResponse};
+
+pub fn routes() -> impl actix_web::dev::HttpServiceFactory {
+    handle_ugoira
+}
+
 #[cfg(feature = "ugoira")]
-pub fn handle_ugoira(client: &ureq::Agent, id: u64) -> rouille::Response {
+#[get("/ugoira/{id}")]
+pub async fn handle_ugoira(
+    client: web::Data<awc::Client>,
+    id: web::Path<u64>,
+) -> actix_web::Result<HttpResponse> {
     use crate::api::ugoira::{fetch_ugoira_meta, UgoiraFrame};
+    use actix_web::{error, web::Buf};
     use std::{
-        io::BufReader,
         io::{Cursor, Read, Seek, Write},
+        sync::{Arc, Mutex},
     };
+    use tokio::sync::oneshot;
 
-    let meta = match fetch_ugoira_meta(client, id) {
-        Ok(meta) => meta,
-        Err(_) => {
-            return rouille::Response::empty_404();
-        }
-    };
-    let ugoira = client.get(&meta.original_src).call().unwrap();
+    let meta = fetch_ugoira_meta(&client, id.into_inner()).await?;
 
-    let reader: Box<dyn Read + Send> = Box::new(ugoira.into_reader());
-    let reader = BufReader::with_capacity(0x4000, reader);
+    let mut ugoira = client
+        .get(&meta.original_src)
+        .send()
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
+    let reader = ugoira.body().limit(0x1000000).await.unwrap().reader();
+    let reader = std::io::BufReader::with_capacity(0x4000, reader);
+    let reader: Box<dyn Read + Send> = Box::new(reader);
 
     struct Opaque<'a> {
-        reader: BufReader<Box<dyn Read + Send>>,
+        reader: Box<dyn Read + Send>,
         file: Option<zip::read::ZipFile<'a>>,
         writer: Cursor<Vec<u8>>,
     }
-    let mut opaque = Opaque {
+    unsafe impl Send for Opaque<'_> {}
+    unsafe impl Sync for Opaque<'_> {}
+
+    let opaque = Opaque {
         reader,
         file: None,
         writer: Cursor::new(Vec::with_capacity(0x100000)),
     };
+
+    let opaque = Arc::new(Mutex::new(opaque));
 
     unsafe extern "C" fn read(opaque: *mut libc::c_void, ptr: *mut u8, sz: i32) -> i32 {
         let opaque = opaque as *mut Opaque<'_>;
@@ -43,7 +61,6 @@ pub fn handle_ugoira(client: &ureq::Agent, id: u64) -> rouille::Response {
                 .unwrap(),
         );
     }
-
     unsafe extern "C" fn write(opaque: *mut libc::c_void, ptr: *mut u8, sz: i32) -> i32 {
         let opaque = opaque as *mut Opaque<'_>;
         let slice = std::slice::from_raw_parts(ptr, sz as usize);
@@ -72,32 +89,42 @@ pub fn handle_ugoira(client: &ureq::Agent, id: u64) -> rouille::Response {
             frame_count: usize,
         ) -> i32;
     }
-    let ret = unsafe {
-        convert(
-            &mut opaque as *mut Opaque<'_> as *mut libc::c_void,
-            read,
-            next,
-            write,
-            seek,
-            meta.frames.as_ptr(),
-            meta.frames.len(),
-        )
-    };
 
-    if ret != 0 {
-        return rouille::Response {
-            status_code: 500,
-            headers: vec![],
-            data: rouille::ResponseBody::empty(),
-            upgrade: None,
+    let (sender, receiver) = oneshot::channel::<i32>();
+
+    let opaque_clone = opaque.clone();
+
+    std::thread::spawn(move || {
+        let ret = {
+            let mut opaque = opaque_clone.lock().unwrap();
+            let opaque: &mut Opaque = &mut opaque;
+            unsafe {
+                convert(
+                    opaque as *mut Opaque<'_> as *mut libc::c_void,
+                    read,
+                    next,
+                    write,
+                    seek,
+                    meta.frames.as_ptr(),
+                    meta.frames.len(),
+                )
+            }
         };
-    }
 
-    rouille::Response::from_data("video/mp4", opaque.writer.into_inner())
-        .with_public_cache(365 * 24 * 60 * 60)
+        sender.send(ret).unwrap();
+    });
+
+    match receiver.await {
+        Ok(0) => Ok(HttpResponse::Ok()
+            .content_type("video/mp4")
+            .insert_header(("cache-control", "max-age=31536000"))
+            .body(opaque.lock().unwrap().writer.clone().into_inner())),
+        _ => Ok(HttpResponse::InternalServerError().finish()),
+    }
 }
 
 #[cfg(not(feature = "ugoira"))]
-pub fn handle_ugoira(_: &ureq::Agent, _: u64) -> rouille::Response {
-    rouille::Response::empty_404().with_status_code(418)
+#[get("/ugoira/{id}")]
+pub async fn handle_ugoira(_: web::Path<u64>) -> HttpResponse {
+    HttpResponse::NotImplemented().finish()
 }

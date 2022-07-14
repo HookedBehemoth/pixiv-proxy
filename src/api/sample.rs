@@ -7,7 +7,7 @@ pub struct Pixiv {
 
 // 
 pub fn fetch_(
-    client: &ureq::Agent, 
+    client: &awc::Client, 
 ) -> Result<PixivSearch, ApiError> {
     let url = format!("https://www.pixiv.net/ajax/search/artworks/{}?word={}&order={}&mode={}&p={}&s_mode={}&type=all&lang=en", query, query, order, mode, page, search_mode);
 
