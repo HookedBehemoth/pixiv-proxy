@@ -6,6 +6,7 @@ pub mod error;
 mod fetch;
 pub mod ranking;
 pub mod search;
+pub mod sketch;
 pub mod tags;
 #[cfg(feature = "ugoira")]
 pub mod ugoira;

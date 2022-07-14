@@ -1,11 +1,11 @@
 use crate::api::{common::ApiResponse, error::ApiError};
 use serde::Deserialize;
 
-pub(crate) async fn fetch_json<T>(client: &awc::Client, url: &str) -> Result<T, ApiError>
+async fn fetch_json_internal<T>(request: awc::SendClientRequest) -> Result<T, ApiError>
 where
     T: for<'a> Deserialize<'a>,
 {
-    match client.get(url).send().await {
+    match request.await {
         Ok(mut response) => {
             if !response.status().is_success() {
                 Err(ApiError::External(
@@ -21,6 +21,23 @@ where
         }
         Err(err) => Err(ApiError::Internal(err.to_string())),
     }
+}
+pub(crate) async fn fetch_json<T>(client: &awc::Client, url: &str) -> Result<T, ApiError>
+where
+    T: for<'a> Deserialize<'a>,
+{
+    fetch_json_internal(client.get(url).send()).await
+}
+
+pub(crate) async fn post_and_fetch_json<T>(
+    client: &awc::Client,
+    url: &str,
+    body: String,
+) -> Result<T, ApiError>
+where
+    T: for<'a> Deserialize<'a>,
+{
+    fetch_json_internal(client.post(url).send_body(body)).await
 }
 
 /* Fetch from pixiv ajax API */

@@ -59,6 +59,7 @@ async fn main() -> std::io::Result<()> {
             .service(routes::about::routes())
             .service(routes::rss::routes())
             .service(routes::favicon::routes())
+            .service(routes::sketch::routes())
     })
     //.service(search_query))
     .bind(&address)?

@@ -8,5 +8,6 @@ pub mod redirect;
 pub mod rss;
 pub mod scroll;
 pub mod search;
+pub mod sketch;
 pub mod ugoira;
 pub mod users;
