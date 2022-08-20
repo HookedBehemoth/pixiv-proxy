@@ -1,3 +1,4 @@
+pub mod alt;
 pub mod comment;
 pub mod datetime;
 pub mod document;
@@ -5,5 +6,6 @@ pub mod error;
 pub mod grid;
 pub mod nav;
 pub mod search;
+pub mod sketch;
 pub mod svg;
 pub mod tags;

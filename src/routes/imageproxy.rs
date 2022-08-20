@@ -1,23 +1,28 @@
 use actix_web::{error, get, web, Error, HttpRequest, HttpResponse};
 
-pub fn image_to_proxy(image: &str) -> String {
-    image.replace("https://i.pximg.net/", "/imageproxy/")
-}
-
 pub fn routes() -> impl actix_web::dev::HttpServiceFactory {
-    (imageproxy, stamp)
+    (imageproxy, s_imageproxy, spix_imageproxy, spxi_imageproxy, stamp)
 }
 
-#[get("/imageproxy/{path:[^{}?]+}")]
-async fn imageproxy(
-    client: web::Data<awc::Client>,
-    request: HttpRequest,
-    path: web::Path<String>,
-) -> Result<HttpResponse, Error> {
-    let url = format!("https://i.pximg.net/{}", path);
-
-    proxy(&client, request, &url).await
+macro_rules! make_proxy {
+    ($name:ident, $path:expr, $dest:tt) => {
+        #[get($path)]
+        async fn $name(
+            client: web::Data<awc::Client>,
+            request: HttpRequest,
+            path: web::Path<String>,
+        ) -> Result<HttpResponse, Error> {
+            let url = format!($dest, path);
+        
+            proxy(&client, request, &url).await
+        }
+    };
 }
+
+make_proxy!(imageproxy, "/imageproxy/{path:[^{}?]+}", "https://i.pximg.net/{}");
+make_proxy!(s_imageproxy, "/simg/{path:[^{}?]+}", "https://s.pximg.net/{}");
+make_proxy!(spix_imageproxy, "/spix/{path:[^{}?]+}", "https://img-sketch.pixiv.net/{}");
+make_proxy!(spxi_imageproxy, "/spxi/{path:[^{}?]+}", "https://img-sketch.pximg.net/{}");
 
 #[get("/stamp/{id}")]
 async fn stamp(

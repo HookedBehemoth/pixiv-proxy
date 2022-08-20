@@ -1,15 +1,32 @@
 use actix_web::{get, web, Result};
 use maud::{html, Markup};
+use serde::Deserialize;
 
 use crate::{
-    api::search::{fetch_search, SearchRequest},
+    api::search::{fetch_search, SearchRequest, SearchRating, SearchMode},
     render::{datetime::DateTimeWrapper, document::document, nav::render_nav},
-    routes::imageproxy::image_to_proxy,
     util,
 };
 
 pub fn routes() -> impl actix_web::dev::HttpServiceFactory {
     scroll
+}
+
+fn page_default() -> u32 {
+    1
+}
+
+#[derive(Deserialize)]
+pub struct RssRequest {
+    #[serde(rename = "p", default = "page_default")]
+    pub page: u32,
+    qtype: String,
+    #[serde(rename = "q")]
+    words: String,
+    #[serde(rename = "mode", default)]
+    rating: SearchRating,
+    #[serde(rename = "s_mode", default)]
+    mode: SearchMode,
 }
 
 #[get("/scroll")]
@@ -59,7 +76,7 @@ async fn scroll(
                                 }
                             }
                         } @else {
-                            img src=(image_to_proxy(&illust.url)) width="250" height="250" alt=(illust.id);
+                            img src=(&illust.url) width="250" height="250" alt=(illust.id);
                         }
                     }
                 }

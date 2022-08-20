@@ -11,9 +11,38 @@ const USER_AGENT: &str = "Mozilla/5.0 (X11; Linux x86_64; rv:103.0) Gecko/201001
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let mut pargs = pico_args::Arguments::from_env();
-    let port: u32 = pargs.value_from_str("--port").unwrap();
-    let host: String = pargs.value_from_str("--host").unwrap();
-    let cookie: String = pargs.value_from_str("--cookie").unwrap();
+    let port: u32 = pargs.value_from_str("--port").unwrap_or(8000);
+    let listen_address = format!("http://localhost:{}", port);
+    let host: String = pargs
+        .value_from_str("--host")
+        .unwrap_or_else(|_| listen_address.clone());
+    let cookie: String = match pargs.value_from_str("--cookie") {
+        Ok(cookie) => cookie,
+        Err(_) => {
+            println!("No cookie set. Fetching generic one.");
+            println!("Keep in mind that this will offer very limited functionality.");
+
+            let client = awc::Client::default();
+            let res = client
+                .get("https://www.pixiv.net/en/")
+                .send()
+                .await
+                .expect("Can't contact Pixiv to fetch default header!");
+
+            let cookie = res
+                .headers()
+                .get_all("set-cookie")
+                .map(|c| c.to_str().unwrap())
+                .find(|&c| c.starts_with("PHPSESSID"))
+                .unwrap();
+
+            let length = cookie.find("; ").unwrap();
+            cookie[..length].to_owned()
+        }
+    };
+
+    println!("Listening on {}", listen_address);
+    println!("Cookies: {}", cookie);
 
     let address = format!("0.0.0.0:{}", port);
     HttpServer::new(move || {

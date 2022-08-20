@@ -2,8 +2,12 @@ use std::collections::HashMap;
 
 use super::{
     common::PixivSearchResult,
-    de::deserialize_map_with_empty_values_as_list_thats_actually_a_list_if_its_empty,
-    error::ApiError, fetch::fetch,
+    de::{
+        deserialize_map_with_empty_values_as_list_thats_actually_a_list_if_its_empty,
+        strip_url_prefix,
+    },
+    error::ApiError,
+    fetch::fetch,
 };
 use serde::Deserialize;
 
@@ -99,6 +103,7 @@ pub async fn fetch_user_bookmarks(
 #[serde(rename_all(deserialize = "camelCase", serialize = "snake_case"))]
 pub struct PixivUser {
     pub name: String,
+    #[serde(deserialize_with = "strip_url_prefix")]
     pub image_big: String,
     pub comment_html: String,
 }

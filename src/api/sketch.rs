@@ -1,143 +1,152 @@
 use super::{
-    de::deserialize_number_unconditionally,
+    de::{deserialize_number_unconditionally, strip_url_prefix},
     error::ApiError,
     fetch::{fetch_json, post_and_fetch_json},
 };
 
 use serde::{Deserialize, Serialize};
-use std::fmt::Write;
+use std::{borrow::Cow, fmt::Write};
 
 #[derive(Deserialize, Serialize)]
 pub struct SketchImage {
-    width: u32,
-    height: u32,
-    url: String,
+    pub width: u32,
+    pub height: u32,
+    #[serde(deserialize_with = "strip_url_prefix")]
+    pub url: String,
 }
 
 #[derive(Deserialize, Serialize)]
 pub struct SketchShortMedia {
-    url: String,
+    #[serde(deserialize_with = "strip_url_prefix")]
+    pub url: String,
 }
 
 #[derive(Deserialize, Serialize)]
 pub struct SketchPhotos {
-    original: SketchImage,
-    pxw540: SketchImage,
-    pxsq60: SketchImage,
+    pub original: SketchImage,
+    pub pxw540: SketchImage,
+    pub pxsq60: SketchImage,
 }
 
 #[derive(Deserialize, Serialize)]
 pub struct SketchMedia {
-    photo: SketchPhotos,
+    pub photo: SketchPhotos,
 }
 
 #[derive(Deserialize, Serialize)]
 pub struct SketchTextFragment {
     #[serde(rename = "type")]
-    t: String,
-    body: String,
-    normalized_body: String,
+    pub t: String,
+    pub body: String,
+    pub normalized_body: String,
 }
 
 #[derive(Deserialize, Serialize)]
 pub struct SketchUserAccount {
-    unique_name: String,
+    pub unique_name: String,
 }
 
 #[derive(Deserialize, Serialize)]
 pub struct SketchUserAccounts {
-    twitter: Option<SketchUserAccount>,
-    pixiv: Option<SketchUserAccount>,
+    pub twitter: Option<SketchUserAccount>,
+    pub pixiv: Option<SketchUserAccount>,
 }
 
 #[derive(Deserialize, Serialize)]
 pub struct SketchUserStats {
-    follower_count: u32,
-    following_count: u32,
-    heart_count: u32,
-    resnap_count: u32,
-    public_post_count: u32,
+    pub follower_count: u32,
+    pub following_count: u32,
+    pub heart_count: u32,
+    pub resnap_count: u32,
+    pub public_post_count: u32,
 }
 
 #[derive(Deserialize, Serialize)]
 pub struct SketchUser {
-    id: u64,
-    pixiv_user_id: u64,
-    name: String,
-    description_fragments: Option<Vec<SketchTextFragment>>,
-    icon: SketchMedia,
-    social_accounts: Option<SketchUserAccounts>,
-    stats: Option<SketchUserStats>,
+    pub id: u64,
+    pub pixiv_user_id: u64,
+    pub name: String,
+    pub description_fragments: Option<Vec<SketchTextFragment>>,
+    pub icon: SketchMedia,
+    pub social_accounts: Option<SketchUserAccounts>,
+    pub stats: Option<SketchUserStats>,
 }
 
 #[derive(Deserialize, Serialize)]
 pub struct SketchUserPosts {
     #[serde(deserialize_with = "deserialize_number_unconditionally")]
-    key: u64,
-    user: SketchUser,
-    posts: Vec<SketchItem>,
+    pub key: u64,
+    pub user: SketchUser,
+    pub posts: Vec<SketchItem>,
 }
 
 #[derive(Deserialize, Serialize)]
 pub struct SketchItem {
     #[serde(deserialize_with = "deserialize_number_unconditionally")]
-    id: u64,
-    comment_count: u32,
-    user: SketchUser,
-    is_r18: bool,
-    media: Vec<SketchMedia>,
-    tags: Vec<String>,
-    text_fragments: Vec<SketchTextFragment>,
-    created_at: chrono::DateTime<chrono::Utc>,
+    pub id: u64,
+    pub comment_count: u32,
+    pub user: SketchUser,
+    pub is_r18: bool,
+    pub media: Vec<SketchMedia>,
+    pub tags: Vec<String>,
+    pub text_fragments: Vec<SketchTextFragment>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
 #[derive(Deserialize, Serialize)]
 pub struct SketchImpressions {
-    feedbacks: Vec<SketchImpression>,
-    item: SketchItem,
+    pub feedbacks: Vec<SketchImpression>,
+    pub item: SketchItem,
 }
 
 #[derive(Deserialize, Serialize)]
 pub struct SketchImpression {
     #[serde(deserialize_with = "deserialize_number_unconditionally")]
-    id: u64,
+    pub id: u64,
     #[serde(rename = "type")]
-    t: String,
-    user: SketchUser,
-    created_at: chrono::DateTime<chrono::Utc>,
+    pub t: String,
+    pub user: SketchUser,
+    pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
 #[derive(Deserialize, Serialize)]
 pub struct SketchLives {
-    lives: Vec<SketchLive>,
+    pub lives: Vec<SketchLive>,
 }
 
 #[derive(Deserialize, Serialize)]
 pub struct SketchLive {
     #[serde(deserialize_with = "deserialize_number_unconditionally")]
-    id: u64,
-    created_at: chrono::DateTime<chrono::Utc>,
-    finished_at: Option<chrono::DateTime<chrono::Utc>>,
-    user: SketchUser,
-    name: String,
-    description_fragments: Vec<SketchTextFragment>,
-    is_r18: bool,
-    is_broadcasting: bool,
-    audience_count: u32,
-    total_audience_count: u32,
-    heart_count: u32,
-    chat_count: u32,
+    pub id: u64,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub finished_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub user: SketchUser,
+    pub name: String,
+    pub description_fragments: Vec<SketchTextFragment>,
+    pub is_r18: bool,
+    pub is_broadcasting: bool,
+    pub audience_count: u32,
+    pub total_audience_count: u32,
+    pub heart_count: u32,
+    pub chat_count: u32,
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct SketchWall {
+    pub items: Vec<SketchItem>,
 }
 
 #[derive(Deserialize, Serialize)]
 pub struct SketchLiveOwner {
-    hls_movie: SketchShortMedia,
+    pub hls_movie: SketchShortMedia,
 }
 
 #[derive(Deserialize, Serialize)]
 pub struct SketchApiResponse<T> {
-    data: T,
+    pub data: T,
 }
+
+impl<T> SketchApiResponse<T> {}
 
 // https://sketch.pixiv.net/api/items/3455710150565207900
 pub async fn fetch_item(
@@ -191,5 +200,33 @@ pub async fn fetch_lives(
     order_by: &str,
 ) -> Result<SketchApiResponse<SketchLives>, ApiError> {
     let url = format!("https://sketch.pixiv.net/api/lives.json?count={count}&order_by={order_by}");
+    fetch_json(client, &url).await
+}
+
+// https://sketch.pixiv.net/api/walls/public.json
+pub async fn fetch_public_wall(
+    client: &awc::Client,
+    since: Option<u64>,
+    max: Option<u64>,
+) -> Result<SketchApiResponse<SketchWall>, ApiError> {
+    let url: Cow<str> = match (since, max) {
+        (Some(since), None) => {
+            format!("https://sketch.pixiv.net/api/walls/public.json?since_id={since}").into()
+        }
+        (None, Some(max)) => {
+            format!("https://sketch.pixiv.net/api/walls/public.json?max_id={max}").into()
+        }
+        _ => "https://sketch.pixiv.net/api/walls/public.json".into(),
+    };
+    fetch_json(client, &url).await
+}
+
+// https://sketch.pixiv.net/api/walls/tags/%E3%83%9D%E3%82%B1%E3%83%A2%E3%83%B3.json
+pub async fn fetch_tag_wall(
+    client: &awc::Client,
+    tag: &str,
+) -> Result<SketchApiResponse<SketchWall>, ApiError> {
+    let tag = percent_encoding::utf8_percent_encode(tag, percent_encoding::NON_ALPHANUMERIC);
+    let url = format!("https://sketch.pixiv.net/api/walls/tags/{tag}.json");
     fetch_json(client, &url).await
 }

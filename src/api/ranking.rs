@@ -1,6 +1,6 @@
 use std::{fmt, str::FromStr};
 
-use super::{error::ApiError, fetch::fetch_json};
+use super::{de::strip_url_prefix, error::ApiError, fetch::fetch_json};
 use serde::{
     de::{self, Visitor},
     Deserialize, Deserializer,
@@ -51,6 +51,7 @@ where
 #[derive(Deserialize)]
 pub struct RankingItem {
     pub title: String,
+    #[serde(deserialize_with = "strip_url_prefix")]
     pub url: String,
     pub illust_id: u32,
     pub width: u32,

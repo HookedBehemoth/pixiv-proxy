@@ -8,7 +8,6 @@ use crate::{
         user::{fetch_user_illust_ids, fetch_user_illustrations},
     },
     render::datetime::DateTimeWrapper,
-    routes::imageproxy::image_to_proxy,
 };
 
 pub fn routes() -> impl actix_web::dev::HttpServiceFactory {
@@ -38,7 +37,8 @@ async fn rss(
     let page = match query.qtype.as_str() {
         "author" => {
             let user_id = query.words.parse::<u64>().unwrap();
-            let ids = fetch_user_illust_ids(&client, user_id).await?;
+            let mut ids = fetch_user_illust_ids(&client, user_id).await?;
+            ids.truncate(60);
             fetch_user_illustrations(&client, user_id, &ids).await?
         }
         _ => {
@@ -91,7 +91,7 @@ async fn rss(
                         @let url = format!(
                             "{}{}",
                             config.host,
-                            image_to_proxy(&s.url)
+                            &s.url
                         );
                         img src=(url) width="250" height="250" alt=(s.id);
                     )

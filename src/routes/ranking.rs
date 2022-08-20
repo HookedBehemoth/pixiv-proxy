@@ -8,7 +8,6 @@ use crate::{
         search::{SearchMode, SearchOrder, SearchRating},
     },
     render::{document::document, nav::render_nav, search::render_options},
-    routes::imageproxy::image_to_proxy,
     util,
 };
 
@@ -45,7 +44,7 @@ async fn ranking(
                         div {
                             a href=(&url) {
                                 @let (width, height) = util::scale_by_aspect_ratio(item.width, item.height, 200, 400);
-                                @let url = image_to_proxy(&item.url);
+                                @let url = &item.url;
                                 img src=(&url) width=(width) height=(height) alt=(&item.title);
                             }
                         }

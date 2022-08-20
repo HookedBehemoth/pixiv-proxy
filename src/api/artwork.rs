@@ -1,8 +1,14 @@
-use super::{de::deserialize_number_unconditionally, error::ApiError, fetch::fetch, tags::Tags};
+use super::{
+    de::{deserialize_number_unconditionally, strip_url_prefix},
+    error::ApiError,
+    fetch::fetch,
+    tags::Tags,
+};
 use serde::Deserialize;
 
 #[derive(Deserialize)]
 pub struct PixivUrls {
+    #[serde(deserialize_with = "strip_url_prefix")]
     pub original: String,
 }
 

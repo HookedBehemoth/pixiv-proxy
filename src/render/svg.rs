@@ -35,3 +35,15 @@ pub fn eye() -> Markup {
         }
     }
 }
+
+pub fn rss() -> Markup {
+    html! {
+        svg width="20" height="20" viewBox="0 0 20 20" style="background-color:#f78422" {
+            circle fill="#fff" cx="4" cy="16" r="2" {}
+            g fill="none" stroke="#fff" stroke-width="3" {
+                path d="M2,4a14,14,0,0,1,14,14" {}
+                path d="M2,9a9,9,0,0,1,9,9" {}
+            }
+        }
+    }
+}

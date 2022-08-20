@@ -1,4 +1,8 @@
-use super::{de::deserialize_number_unconditionally, error::ApiError, fetch::fetch};
+use super::{
+    de::{deserialize_number_unconditionally, strip_url_prefix},
+    error::ApiError,
+    fetch::fetch,
+};
 use serde::Deserialize;
 
 #[derive(Deserialize)]
@@ -14,6 +18,7 @@ pub struct PixivComment {
     #[serde(deserialize_with = "deserialize_number_unconditionally")]
     pub user_id: u64,
     pub user_name: String,
+    #[serde(deserialize_with = "strip_url_prefix")]
     pub img: String,
     #[serde(deserialize_with = "deserialize_number_unconditionally")]
     pub id: u64,

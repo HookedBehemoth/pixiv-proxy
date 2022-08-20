@@ -1,4 +1,4 @@
-use super::de::deserialize_number_unconditionally;
+use super::de::{deserialize_number_unconditionally, strip_url_prefix};
 use serde::Deserialize;
 
 #[derive(Deserialize)]
@@ -23,6 +23,7 @@ pub struct PixivSearchResult {
     pub r18: u32,
     pub page_count: u32,
     pub illust_type: u8,
+    #[serde(deserialize_with = "strip_url_prefix")]
     pub url: String,
     pub width: u32,
     pub height: u32,

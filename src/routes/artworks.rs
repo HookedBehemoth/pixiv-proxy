@@ -7,8 +7,6 @@ use crate::{
     util,
 };
 
-use super::imageproxy::image_to_proxy;
-
 pub fn routes() -> impl actix_web::dev::HttpServiceFactory {
     web::resource(["/en/artworks/{id}", "/artworks/{id}"]).route(web::get().to(artwork))
 }
@@ -17,7 +15,7 @@ async fn artwork(client: web::Data<awc::Client>, id: web::Path<u64>) -> Result<M
     let id = id.into_inner();
     let artwork = fetch_artwork(&client, id).await?;
 
-    let image = image_to_proxy(&artwork.urls.original);
+    let image = &artwork.urls.original;
     let date = chrono::DateTime::parse_from_rfc3339(&artwork.create_date);
 
     let docs = document(

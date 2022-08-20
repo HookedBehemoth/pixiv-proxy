@@ -1,3 +1,5 @@
+use serde::de::{Expected, Unexpected};
+
 pub fn deserialize_number_unconditionally<'de, D>(deserializer: D) -> Result<u64, D::Error>
 where
     D: serde::Deserializer<'de>,
@@ -64,4 +66,51 @@ where
     }
 
     deserializer.deserialize_any(MapOrListVisitor)
+}
+
+pub fn strip_url_prefix<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    struct StripUrlPrefixVisitor;
+
+    impl<'de> serde::de::Visitor<'de> for StripUrlPrefixVisitor {
+        type Value = String;
+
+        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+            formatter.write_str("Valid URL")
+        }
+
+        fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            let (prefix, path) = value.split_once(".net").unwrap_or(("", value));
+            let prefix = match prefix {
+                "https://i.pximg" => "imageproxy",
+                "https://s.pximg" => "simg",
+                "https://img-sketch.pixiv" => "spix",
+                "https://img-sketch.pximg" => "spxi",
+                prefix => {
+                    return Err(E::invalid_value(
+                        Unexpected::Str(prefix),
+                        &ValidPixivImageUrl,
+                    ))
+                }
+            };
+            Ok(format!("/{prefix}{path}"))
+        }
+    }
+
+    deserializer.deserialize_any(StripUrlPrefixVisitor)
+}
+
+struct ValidPixivImageUrl;
+
+impl Expected for ValidPixivImageUrl {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.write_str(
+            "Valid Pixiv Image URL: i.pximg.net, img-sketch.pixiv.net, img-sketch.pximg.net",
+        )
+    }
 }

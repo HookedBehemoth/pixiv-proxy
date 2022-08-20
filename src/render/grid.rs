@@ -1,4 +1,4 @@
-use crate::{api::common::PixivSearchResult, render::svg, routes::imageproxy::image_to_proxy};
+use crate::{api::common::PixivSearchResult, render::svg};
 
 use maud::html;
 
@@ -14,7 +14,7 @@ pub fn render_grid(list: &[PixivSearchResult]) -> maud::Markup {
             @for artwork in list {
                 @let link = format!("/artworks/{}", artwork.id);
                 @let link = if !artwork.is_masked { Some(&link) } else { None };
-                @let img = image_to_proxy(&artwork.url);
+                @let img = &artwork.url;
                 li {
                     a href=[link] {
                         @if artwork.r18 == 1 {

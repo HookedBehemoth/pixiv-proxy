@@ -1,7 +1,7 @@
-use actix_web::{web, Result};
+use actix_web::{get, web, HttpRequest, Result};
 use maud::{html, Markup, PreEscaped};
 use serde::Deserialize;
-use tokio::try_join;
+use tokio::{try_join, join};
 
 use crate::{
     api::{
@@ -12,8 +12,7 @@ use crate::{
             fetch_user_profile,
         },
     },
-    render::{document::document, grid::render_grid, nav::render_nav},
-    routes::imageproxy::image_to_proxy,
+    render::{alt::render_alt_author, document::document, grid::render_grid, nav::render_nav},
 };
 
 pub fn routes() -> impl actix_web::dev::HttpServiceFactory {
@@ -72,7 +71,7 @@ async fn user(
         fetch_illustrations(client, user_id, query, bookmarks),
     )?;
 
-    let image = image_to_proxy(&user.image_big);
+    let image = &user.image_big;
 
     let doc = document(
         &user.name,
@@ -80,6 +79,7 @@ async fn user(
             header.author {
                 img.logo src=(&image) alt=(&user.name) width="170";
                 h1 { (&user.name) }
+                (render_alt_author(user_id, query.page))
                 @if !user.comment_html.is_empty() {
                     p { (PreEscaped(&user.comment_html)) }
                 }
@@ -143,4 +143,30 @@ async fn fetch_illustrations(
 
         Ok((bookmarks.works, bookmarks.total))
     }
+}
+
+#[get("/subscriptions")]
+async fn multiuser_bookmarks(
+    client: web::Data<awc::Client>,
+    request: HttpRequest,
+) -> Result<Markup, ApiError> {
+    let query = UserRequest {
+        page: 1,
+        tag: "".to_string(),
+    };
+    // let artists = request
+    //     .headers()
+    //     .get("Cookies")
+    //     .unwrap()
+    //     .to_str()
+    //     .unwrap()
+    //     .split(';')
+    //     .map(|s| s.parse::<u64>().unwrap())
+    //     .map(|a| fetch_illustrations(&client, a, &query, false))
+    //     .fold();
+    
+
+    let body = html! {};
+
+    Ok(body)
 }
