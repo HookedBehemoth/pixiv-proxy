@@ -90,6 +90,14 @@ async fn artwork(client: web::Data<awc::Client>, id: web::Path<u64>) -> Result<M
                     meta name="twitter:player:height" content=(artwork.height);
                 },
                 _ => {
+                    @for url in std::iter::once(image.clone())
+                        .chain(
+                            (1..artwork.page_count).map(|i|
+                                image.clone().replace("_p0.", &format!("_p{}.", i))
+                            )
+                        ) {
+                        meta name="og:image" src=(&url);
+                    }
                     meta name="twitter:card" content="summary_large_image";
                 }
             }
