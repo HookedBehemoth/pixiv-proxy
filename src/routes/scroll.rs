@@ -1,26 +1,40 @@
 use maud::html;
 
 use crate::{
-    api::{search::{fetch_search, SearchRequest}, error::ApiError},
+    api::{
+        error::ApiError,
+        search::{fetch_search, SearchRequest},
+    },
+    get_param_or_str,
     render::{datetime::DateTimeWrapper, document::document, nav::render_nav},
-    util, get_param_or_str,
+    util,
 };
 
 pub fn scroll(
     client: &ureq::Agent,
     query: &rouille::Request,
 ) -> Result<rouille::Response, ApiError> {
-    let tags = get_param_or_str!(query, "q", "");
+    let qtype = get_param_or_str!(query, "qtype", "search");
+    let words = get_param_or_str!(query, "q", "");
     let query = SearchRequest::from(query);
-    let content = fetch_search(&client, &tags, &query)?;
+    let (data, total) = match &qtype[..] {
+        "author" => {
+            let user_id = words.parse::<u64>().unwrap();
+            super::users::fetch_illustrations(client, user_id, query.page, &words, false)?
+        }
+        _ => {
+            let search = fetch_search(&client, &words, &query)?;
+            (search.illust_manga.data, search.illust_manga.total)
+        }
+    };
 
     let document = document(
-        &tags,
+        &words,
         html! {
-            h1 { (tags) }
-            p { (content.illust_manga.total) }
+            h1 { (words) }
+            p { (total) }
             ul.scroll.artworks {
-                @for illust in content.illust_manga.data.iter() {
+                @for illust in data.iter() {
                     li {
                         h2 { a href=(format!("/artworks/{}", illust.id)) { (illust.title) } }
 
@@ -58,9 +72,9 @@ pub fn scroll(
                     }
                 }
             }
-            @if content.illust_manga.total > content.illust_manga.data.len() {
-                @let format = format!("scroll?q={}&mode={}&order={}&s_mode={}&p=", tags, query.rating, query.order, query.mode);
-                (render_nav(query.page, content.illust_manga.total, 60, &format))
+            @if total > data.len() {
+                @let format = format!("scroll?qtype={qtype}&q={words}&mode={}&order={}&s_mode={}&p=", query.rating, query.order, query.mode);
+                (render_nav(query.page, total, 60, &format))
             }
         },
         None,

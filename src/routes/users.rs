@@ -89,7 +89,7 @@ fn user(
     Ok(rouille::Response::html(document.into_string()))
 }
 
-fn fetch_illustrations(
+pub fn fetch_illustrations(
     client: &ureq::Agent,
     user_id: u64,
     page: u32,
