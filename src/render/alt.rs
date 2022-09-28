@@ -18,9 +18,11 @@ pub fn render_alt_author(id: u64, page: u32) -> Markup {
 }
 
 pub fn render_alt_search(q: &str, query: &SearchRequest) -> Markup {
-    let options = format!("?qtype=search&q={q}&mode={rating}&order={order}&s_mode={mode}",
+    let options = format!(
+        "?qtype=search&q={q}&mode={rating}&order={order}&s_mode={mode}",
         rating = query.rating,
         order = query.order,
-        mode = query.mode);
+        mode = query.mode
+    );
     render_alt(&options, query.page)
 }

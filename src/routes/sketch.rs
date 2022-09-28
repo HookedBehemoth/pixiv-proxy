@@ -30,10 +30,7 @@ pub fn sketch_public(client: &ureq::Agent) -> Result<rouille::Response, ApiError
     Ok(rouille::Response::html(document.into_string()))
 }
 
-pub fn sketch_tags(
-    client: &ureq::Agent,
-    tag: &str,
-) -> Result<rouille::Response, ApiError> {
+pub fn sketch_tags(client: &ureq::Agent, tag: &str) -> Result<rouille::Response, ApiError> {
     let wall = fetch_tag_wall(&client, &tag)?.data;
 
     let document = document(
@@ -52,10 +49,7 @@ pub fn sketch_tags(
     Ok(rouille::Response::html(document.into_string()))
 }
 
-pub fn sketch_user(
-    client: &ureq::Agent,
-    id: u64,
-) -> Result<rouille::Response, ApiError> {
+pub fn sketch_user(client: &ureq::Agent, id: u64) -> Result<rouille::Response, ApiError> {
     let user = fetch_user(&client, id)?;
 
     // TODO
@@ -64,10 +58,7 @@ pub fn sketch_user(
     Ok(rouille::Response::html(ajax))
 }
 
-pub fn sketch_item(
-    client: &ureq::Agent,
-    id: u64,
-) -> Result<rouille::Response, ApiError> {
+pub fn sketch_item(client: &ureq::Agent, id: u64) -> Result<rouille::Response, ApiError> {
     let item = fetch_item(&client, id)?;
 
     let ajax = serde_json::to_string_pretty(&item).unwrap();
@@ -83,10 +74,7 @@ pub fn sketch_lives(client: &ureq::Agent) -> Result<rouille::Response, ApiError>
     Ok(rouille::Response::html(ajax))
 }
 
-pub fn sketch_impressions(
-    client: &ureq::Agent,
-    id: u64,
-) -> Result<rouille::Response, ApiError> {
+pub fn sketch_impressions(client: &ureq::Agent, id: u64) -> Result<rouille::Response, ApiError> {
     let impressions = fetch_feedbacks(&client, id)?;
 
     let ajax = serde_json::to_string_pretty(&impressions).unwrap();

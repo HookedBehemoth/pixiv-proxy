@@ -1,4 +1,3 @@
-
 const CSS: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/main.css"));
 
 pub fn style_sheet() -> rouille::Response {

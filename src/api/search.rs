@@ -153,9 +153,18 @@ impl From<&rouille::Request> for SearchRequest {
     fn from(req: &rouille::Request) -> Self {
         Self {
             page: get_param_or_num!(req, "p", 1),
-            order: req.get_param("order").map(|s| SearchOrder::from_str(&s).unwrap()).unwrap_or(SearchOrder::DateDescending),
-            rating: req.get_param("mode").map(|s| SearchRating::from_str(&s).unwrap()).unwrap_or(SearchRating::All),
-            mode: req.get_param("s_mode").map(|s| SearchMode::from_str(&s).unwrap()).unwrap_or(SearchMode::TagsPerfect),
+            order: req
+                .get_param("order")
+                .map(|s| SearchOrder::from_str(&s).unwrap())
+                .unwrap_or(SearchOrder::DateDescending),
+            rating: req
+                .get_param("mode")
+                .map(|s| SearchRating::from_str(&s).unwrap())
+                .unwrap_or(SearchRating::All),
+            mode: req
+                .get_param("s_mode")
+                .map(|s| SearchMode::from_str(&s).unwrap())
+                .unwrap_or(SearchMode::TagsPerfect),
         }
     }
 }

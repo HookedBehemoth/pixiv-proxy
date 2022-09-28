@@ -44,11 +44,7 @@ pub fn fetch_comments(
 }
 
 // https://www.pixiv.net/ajax/illusts/comments/replies?comment_id=137840290&page=1&lang=en
-pub fn fetch_replies(
-    client: &ureq::Agent,
-    id: u64,
-    page: u32,
-) -> Result<PixivComments, ApiError> {
+pub fn fetch_replies(client: &ureq::Agent, id: u64, page: u32) -> Result<PixivComments, ApiError> {
     let url = format!(
         "https://www.pixiv.net/ajax/illusts/comments/replies?comment_id={}&page={}&lang=en",
         id, page

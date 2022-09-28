@@ -58,19 +58,14 @@ fn proxy(
         .headers_names()
         .iter()
         .filter(|h| !FORBIDDEN_CLIENT_HEADERS.contains(&h.as_str()))
-        .map(|s| {
-            (
-                s.clone().into(),
-                res.header(s).unwrap().to_owned().into(),
-            )
-        })
+        .map(|s| (s.clone().into(), res.header(s).unwrap().to_owned().into()))
         .collect();
 
     let reader = match res.header("Content-Length").map(|s| s.parse::<usize>()) {
         Some(Ok(len)) => rouille::ResponseBody::from_reader_and_size(res.into_reader(), len),
         _ => rouille::ResponseBody::from_reader(res.into_reader()),
     };
-    
+
     Ok(rouille::Response {
         status_code: status,
         headers,

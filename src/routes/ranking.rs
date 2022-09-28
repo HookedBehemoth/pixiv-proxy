@@ -2,14 +2,19 @@ use maud::html;
 
 use crate::{
     api::{
+        error::ApiError,
         ranking::fetch_ranking,
-        search::{SearchMode, SearchOrder, SearchRating}, error::ApiError,
+        search::{SearchMode, SearchOrder, SearchRating},
     },
+    get_param_or_num,
     render::{document::document, nav::render_nav, search::render_options},
-    util, get_param_or_num,
+    util,
 };
 
-pub fn ranking(client: &ureq::Agent, query: &rouille::Request) -> Result<rouille::Response, ApiError> {
+pub fn ranking(
+    client: &ureq::Agent,
+    query: &rouille::Request,
+) -> Result<rouille::Response, ApiError> {
     let date = query.get_param("date");
     let page = get_param_or_num!(query, "p", 1);
     let ranking = fetch_ranking(client, date.as_ref(), page)?;

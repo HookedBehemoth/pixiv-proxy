@@ -1,7 +1,10 @@
 use maud::html;
 
 use crate::{
-    api::{search::{fetch_search, SearchRequest}, error::ApiError},
+    api::{
+        error::ApiError,
+        search::{fetch_search, SearchRequest},
+    },
     render::{
         alt::render_alt_search, document::document, grid::render_grid, nav::render_nav,
         search::render_options,
@@ -20,7 +23,9 @@ pub fn query_search(
     client: &ureq::Agent,
     request: &rouille::Request,
 ) -> Result<rouille::Response, ApiError> {
-    let words = request.get_param("q").ok_or_else(|| ApiError::External(403, "No query".into()))?;
+    let words = request
+        .get_param("q")
+        .ok_or_else(|| ApiError::External(403, "No query".into()))?;
     render_search(client, &words, request)
 }
 

@@ -24,10 +24,7 @@ pub struct PixivIllustrations {
 }
 
 // https://www.pixiv.net/ajax/user/3384404/profile/all?lang=en
-pub fn fetch_user_illust_ids(
-    client: &ureq::Agent,
-    user_id: u64,
-) -> Result<Vec<u64>, ApiError> {
+pub fn fetch_user_illust_ids(client: &ureq::Agent, user_id: u64) -> Result<Vec<u64>, ApiError> {
     let url = format!(
         "https://www.pixiv.net/ajax/user/{}/profile/all?lang=en",
         user_id
