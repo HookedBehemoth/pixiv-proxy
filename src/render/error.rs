@@ -1,6 +1,5 @@
 use std::fmt::Display;
 
-use actix_web::error;
 use maud::html;
 
 use crate::api::error::ApiError;
@@ -17,8 +16,6 @@ impl Display for ApiError {
         }
     }
 }
-
-impl error::ResponseError for ApiError {}
 
 impl maud::Render for ApiError {
     fn render(&self) -> maud::Markup {

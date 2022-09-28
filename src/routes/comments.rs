@@ -1,35 +1,22 @@
-use actix_web::{get, web, Result};
-use maud::{html, Markup};
-use serde::Deserialize;
+use maud::html;
 
-use crate::api::comments::{fetch_comments, fetch_replies};
+use crate::api::{
+    comments::{fetch_comments, fetch_replies},
+    error::ApiError,
+};
+use crate::get_param_or_num;
 
-pub fn routes() -> impl actix_web::dev::HttpServiceFactory {
-    (comments, replies)
-}
+pub fn comments(
+    client: &ureq::Agent,
+    id: u64,
+    query: &rouille::Request,
+) -> Result<rouille::Response, ApiError> {
+    let offset = get_param_or_num!(query, "offset", 0);
+    let limit = get_param_or_num!(query, "limit", 100);
 
-#[derive(Deserialize)]
-struct CommentsRequest {
-    #[serde(default)]
-    offset: u32,
-    limit: Option<u32>,
-}
+    let roots = fetch_comments(&client, id, offset, limit)?;
 
-#[get("/comments/{id}")]
-async fn comments(
-    client: web::Data<awc::Client>,
-    id: web::Path<u64>,
-    query: web::Query<CommentsRequest>,
-) -> Result<Markup> {
-    let id = *id;
-    let offset = query.offset;
-    let limit = query.limit.unwrap_or(100);
-
-    let roots = fetch_comments(&client, id, offset, limit)
-        .await
-        .map_err(actix_web::error::ErrorNotFound)?;
-
-    let doc = html! {
+    let document = html! {
         ul.comments {
             @for comment in roots.comments {
                 (&comment)
@@ -42,28 +29,19 @@ async fn comments(
         }
     };
 
-    Ok(doc)
+    Ok(rouille::Response::html(document.into_string()))
 }
 
-#[derive(Deserialize)]
-struct RepliesRequest {
-    page: Option<u32>,
-}
+pub fn replies(
+    client: &ureq::Agent,
+    id: u64,
+    query: &rouille::Request,
+) -> Result<rouille::Response, ApiError> {
+    let page = get_param_or_num!(query, "page", 1);
 
-#[get("/replies/{id}")]
-async fn replies(
-    client: web::Data<awc::Client>,
-    id: web::Path<u64>,
-    query: web::Query<RepliesRequest>,
-) -> Result<Markup> {
-    let id = *id;
-    let page = query.page.unwrap_or(1);
+    let replies = fetch_replies(&client, id, page)?;
 
-    let replies = fetch_replies(&client, id, page)
-        .await
-        .map_err(actix_web::error::ErrorNotFound)?;
-
-    let doc = html! {
+    let document = html! {
         @if replies.has_next {
             button endpoint=(format!("/replies/{}?page={}", id, page + 1)) onclick="inject(this, false)" {
                 "Load older replies"
@@ -76,5 +54,5 @@ async fn replies(
         }
     };
 
-    Ok(doc)
+    Ok(rouille::Response::html(document.into_string()))
 }

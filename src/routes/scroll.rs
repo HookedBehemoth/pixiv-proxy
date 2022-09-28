@@ -1,44 +1,21 @@
-use actix_web::{get, web, Result};
-use maud::{html, Markup};
-use serde::Deserialize;
+use maud::html;
 
 use crate::{
-    api::search::{fetch_search, SearchRequest, SearchRating, SearchMode},
+    api::{search::{fetch_search, SearchRequest}, error::ApiError},
     render::{datetime::DateTimeWrapper, document::document, nav::render_nav},
-    util,
+    util, get_param_or_str,
 };
 
-pub fn routes() -> impl actix_web::dev::HttpServiceFactory {
-    scroll
-}
+pub fn scroll(
+    client: &ureq::Agent,
+    query: &rouille::Request,
+) -> Result<rouille::Response, ApiError> {
+    let tags = get_param_or_str!(query, "q", "");
+    let query = SearchRequest::from(query);
+    let content = fetch_search(&client, &tags, &query)?;
 
-fn page_default() -> u32 {
-    1
-}
-
-#[derive(Deserialize)]
-pub struct RssRequest {
-    #[serde(rename = "p", default = "page_default")]
-    pub page: u32,
-    qtype: String,
-    #[serde(rename = "q")]
-    words: String,
-    #[serde(rename = "mode", default)]
-    rating: SearchRating,
-    #[serde(rename = "s_mode", default)]
-    mode: SearchMode,
-}
-
-#[get("/scroll")]
-async fn scroll(
-    client: web::Data<awc::Client>,
-    query: web::Query<SearchRequest>,
-) -> Result<Markup> {
-    let tags = query.q.as_ref().unwrap();
-    let content = fetch_search(&client, tags, &query).await?;
-
-    let doc = document(
-        tags,
+    let document = document(
+        &tags,
         html! {
             h1 { (tags) }
             p { (content.illust_manga.total) }
@@ -89,5 +66,5 @@ async fn scroll(
         None,
     );
 
-    Ok(doc)
+    Ok(rouille::Response::html(document.into_string()))
 }

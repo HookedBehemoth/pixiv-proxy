@@ -1,56 +1,43 @@
-use actix_web::{get, web, Result};
 use maud::html;
 
 use crate::{
-    api::search::{fetch_search, SearchRequest},
+    api::{search::{fetch_search, SearchRequest}, error::ApiError},
     render::{
         alt::render_alt_search, document::document, grid::render_grid, nav::render_nav,
         search::render_options,
     },
 };
 
-pub fn routes() -> impl actix_web::dev::HttpServiceFactory {
-    (
-        web::resource([
-            "/tags/{tags}",
-            "/en/tags/{tags}",
-            "/tags/{tags}/artworks",
-            "/en/tags/{tags}/artworks",
-        ])
-        .route(web::get().to(query_tags)),
-        query_search,
-    )
-}
-
-async fn query_tags(
-    client: web::Data<awc::Client>,
-    tags: web::Path<String>,
-    query: web::Query<SearchRequest>,
-) -> Result<maud::Markup> {
-    render_search(&client, &tags, &query).await
-}
-
-#[get("/search")]
-async fn query_search(
-    client: web::Data<awc::Client>,
-    query: web::Query<SearchRequest>,
-) -> Result<maud::Markup> {
-    render_search(&client, query.q.as_ref().unwrap(), &query).await
-}
-
-async fn render_search(
-    client: &awc::Client,
+pub fn tags(
+    client: &ureq::Agent,
     tags: &str,
-    query: &SearchRequest,
-) -> Result<maud::Markup> {
-    let search = fetch_search(client, tags, query).await?;
+    request: &rouille::Request,
+) -> Result<rouille::Response, ApiError> {
+    render_search(client, &tags, request)
+}
 
-    Ok(document(
+pub fn query_search(
+    client: &ureq::Agent,
+    request: &rouille::Request,
+) -> Result<rouille::Response, ApiError> {
+    let words = request.get_param("q").ok_or_else(|| ApiError::External(403, "No query".into()))?;
+    render_search(client, &words, request)
+}
+
+fn render_search(
+    client: &ureq::Agent,
+    tags: &str,
+    request: &rouille::Request,
+) -> Result<rouille::Response, ApiError> {
+    let query = SearchRequest::from(request);
+    let search = fetch_search(client, tags, &query)?;
+
+    let document = document(
         tags,
         html! {
             h1 { (&tags) }
             (&search.illust_manga.total)
-            (render_alt_search(tags, query))
+            (render_alt_search(tags, &query))
             (render_options(tags, query.rating, query.order, query.mode))
             (render_grid(&search.illust_manga.data))
             @if search.illust_manga.total > 60 {
@@ -59,5 +46,7 @@ async fn render_search(
             }
         },
         None,
-    ))
+    );
+
+    Ok(rouille::Response::html(document.into_string()))
 }

@@ -16,11 +16,11 @@ pub struct UgoiraFrame {
     pub delay: u16,
 }
 
-pub async fn fetch_ugoira_meta(client: &awc::Client, id: u64) -> Result<UgoiraMeta, ApiError> {
+pub fn fetch_ugoira_meta(client: &ureq::Agent, id: u64) -> Result<UgoiraMeta, ApiError> {
     let url = format!(
         "https://www.pixiv.net/ajax/illust/{}/ugoira_meta?lang=en",
         id
     );
 
-    fetch(client, &url).await
+    fetch(client, &url)
 }

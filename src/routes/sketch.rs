@@ -9,25 +9,12 @@ use crate::{
     render::document::document,
 };
 
-use actix_web::{dev::HttpServiceFactory, get, web, Result};
-use maud::{html, Markup};
+use maud::html;
 
-pub fn routes() -> impl HttpServiceFactory {
-    (
-        sketch_public,
-        sketch_tags,
-        sketch_user,
-        sketch_item,
-        sketch_impressions,
-        sketch_lives,
-    )
-}
+pub fn sketch_public(client: &ureq::Agent) -> Result<rouille::Response, ApiError> {
+    let wall = fetch_public_wall(&client, None, None)?.data;
 
-#[get("/sketch")]
-async fn sketch_public(client: web::Data<awc::Client>) -> Result<Markup, ApiError> {
-    let wall = fetch_public_wall(&client, None, None).await?.data;
-
-    Ok(document(
+    let document = document(
         "Sketch",
         html! {
             ul.sketch_wall {
@@ -38,17 +25,18 @@ async fn sketch_public(client: web::Data<awc::Client>) -> Result<Markup, ApiErro
             // span style="white-space:pre-wrap" {(serde_json::to_string_pretty(&wall).unwrap())}
         },
         None,
-    ))
+    );
+
+    Ok(rouille::Response::html(document.into_string()))
 }
 
-#[get("/sketch/tags/{tag}")]
-async fn sketch_tags(
-    client: web::Data<awc::Client>,
-    tag: web::Path<String>,
-) -> Result<Markup, ApiError> {
-    let wall = fetch_tag_wall(&client, &tag).await?.data;
+pub fn sketch_tags(
+    client: &ureq::Agent,
+    tag: &str,
+) -> Result<rouille::Response, ApiError> {
+    let wall = fetch_tag_wall(&client, &tag)?.data;
 
-    Ok(document(
+    let document = document(
         "Sketch",
         html! {
             ul.sketch_wall {
@@ -59,42 +47,49 @@ async fn sketch_tags(
             // span style="white-space:pre-wrap" {(serde_json::to_string_pretty(&wall).unwrap())}
         },
         None,
-    ))
+    );
+
+    Ok(rouille::Response::html(document.into_string()))
 }
 
-#[get("/sketch/users/{id}")]
-async fn sketch_user(
-    client: web::Data<awc::Client>,
-    id: web::Path<u64>,
-) -> Result<String, ApiError> {
-    let user = fetch_user(&client, *id).await?;
+pub fn sketch_user(
+    client: &ureq::Agent,
+    id: u64,
+) -> Result<rouille::Response, ApiError> {
+    let user = fetch_user(&client, id)?;
 
-    Ok(serde_json::to_string_pretty(&user).unwrap())
+    // TODO
+    let ajax = serde_json::to_string_pretty(&user).unwrap();
+
+    Ok(rouille::Response::html(ajax))
 }
 
-#[get("/sketch/items/{id}")]
-async fn sketch_item(
-    client: web::Data<awc::Client>,
-    id: web::Path<u64>,
-) -> Result<String, ApiError> {
-    let item = fetch_item(&client, *id).await?;
+pub fn sketch_item(
+    client: &ureq::Agent,
+    id: u64,
+) -> Result<rouille::Response, ApiError> {
+    let item = fetch_item(&client, id)?;
 
-    Ok(serde_json::to_string_pretty(&item).unwrap())
+    let ajax = serde_json::to_string_pretty(&item).unwrap();
+
+    Ok(rouille::Response::html(ajax))
 }
 
-#[get("/sketch/lives")]
-async fn sketch_lives(client: web::Data<awc::Client>) -> Result<String, ApiError> {
-    let lives = fetch_lives(&client, 20, "audience_count").await?;
+pub fn sketch_lives(client: &ureq::Agent) -> Result<rouille::Response, ApiError> {
+    let lives = fetch_lives(&client, 20, "audience_count")?;
 
-    Ok(serde_json::to_string_pretty(&lives).unwrap())
+    let ajax = serde_json::to_string_pretty(&lives).unwrap();
+
+    Ok(rouille::Response::html(ajax))
 }
 
-#[get("/sketch/impressions/{id}")]
-async fn sketch_impressions(
-    client: web::Data<awc::Client>,
-    id: web::Path<u64>,
-) -> Result<String, ApiError> {
-    let impressions = fetch_feedbacks(&client, *id).await?;
+pub fn sketch_impressions(
+    client: &ureq::Agent,
+    id: u64,
+) -> Result<rouille::Response, ApiError> {
+    let impressions = fetch_feedbacks(&client, id)?;
 
-    Ok(serde_json::to_string_pretty(&impressions).unwrap())
+    let ajax = serde_json::to_string_pretty(&impressions).unwrap();
+
+    Ok(rouille::Response::html(ajax))
 }

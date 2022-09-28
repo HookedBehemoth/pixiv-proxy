@@ -1,73 +1,80 @@
-use actix_web::{error, get, web, Error, HttpRequest, HttpResponse};
-
-pub fn routes() -> impl actix_web::dev::HttpServiceFactory {
-    (imageproxy, s_imageproxy, spix_imageproxy, spxi_imageproxy, stamp)
-}
+use crate::api::error::ApiError;
 
 macro_rules! make_proxy {
     ($name:ident, $path:expr, $dest:tt) => {
-        #[get($path)]
-        async fn $name(
-            client: web::Data<awc::Client>,
-            request: HttpRequest,
-            path: web::Path<String>,
-        ) -> Result<HttpResponse, Error> {
+        pub fn $name(
+            client: &ureq::Agent,
+            path: &str,
+            request: &rouille::Request,
+        ) -> Option<Result<rouille::Response, ApiError>> {
+            let path = path.strip_prefix($path)?;
             let url = format!($dest, path);
-        
-            proxy(&client, request, &url).await
+            Some(proxy(&client, &url, request))
         }
     };
 }
 
-make_proxy!(imageproxy, "/imageproxy/{path:[^{}?]+}", "https://i.pximg.net/{}");
-make_proxy!(s_imageproxy, "/simg/{path:[^{}?]+}", "https://s.pximg.net/{}");
-make_proxy!(spix_imageproxy, "/spix/{path:[^{}?]+}", "https://img-sketch.pixiv.net/{}");
-make_proxy!(spxi_imageproxy, "/spxi/{path:[^{}?]+}", "https://img-sketch.pximg.net/{}");
+make_proxy!(imageproxy, "/imageproxy/", "https://i.pximg.net/{}");
+make_proxy!(s_imageproxy, "/simg/", "https://s.pximg.net/{}");
+make_proxy!(spix_imageproxy, "/spix/", "https://img-sketch.pixiv.net/{}");
+make_proxy!(spxi_imageproxy, "/spxi/", "https://img-sketch.pximg.net/{}");
 
-#[get("/stamp/{id}")]
-async fn stamp(
-    client: web::Data<awc::Client>,
-    request: HttpRequest,
-    id: web::Path<u32>,
-) -> Result<HttpResponse, Error> {
+pub fn stamp(
+    client: &ureq::Agent,
+    id: u32,
+    request: &rouille::Request,
+) -> Result<rouille::Response, ApiError> {
     let url = format!(
         "https://s.pximg.net/common/images/stamp/generated-stamps/{}_s.jpg?20180605",
         id
     );
 
-    proxy(&client, request, &url).await
+    proxy(&client, &url, request)
 }
 
 /* Note: passing these to the client should be avoided */
-const FORBIDDEN_CLIENT_HEADERS: &[&str] = &["connection", "cookies"];
+const FORBIDDEN_CLIENT_HEADERS: &[&str] = &["connection", "cookies", "set-cookie"];
 const FORBIDDEN_SERVER_HEADERS: &[&str] =
     &["connection", "cookie", "user-agent", "host", "referer"];
 
-async fn proxy(
-    client: &awc::Client,
-    request: HttpRequest,
+fn proxy(
+    client: &ureq::Agent,
     url: &str,
-) -> Result<HttpResponse, Error> {
+    request: &rouille::Request,
+) -> Result<rouille::Response, ApiError> {
     let mut req = client.get(url);
 
     for header in request
         .headers()
-        .iter()
-        .filter(|(h, _)| !FORBIDDEN_SERVER_HEADERS.contains(&h.as_str()))
+        .filter(|(h, _)| !FORBIDDEN_SERVER_HEADERS.contains(&h.to_lowercase().as_str()))
     {
-        req = req.insert_header(header);
+        req = req.set(header.0, header.1);
     }
 
-    let res = req.send().await.map_err(error::ErrorInternalServerError)?;
+    let res = req.call()?;
+    let status = res.status();
 
-    let mut client_resp = HttpResponse::build(res.status());
-    for header in res
-        .headers()
+    let headers = res
+        .headers_names()
         .iter()
-        .filter(|(h, _)| !FORBIDDEN_CLIENT_HEADERS.contains(&h.as_str()))
-    {
-        client_resp.insert_header(header);
-    }
+        .filter(|h| !FORBIDDEN_CLIENT_HEADERS.contains(&h.as_str()))
+        .map(|s| {
+            (
+                s.clone().into(),
+                res.header(s).unwrap().to_owned().into(),
+            )
+        })
+        .collect();
 
-    Ok(client_resp.streaming(res))
+    let reader = match res.header("Content-Length").map(|s| s.parse::<usize>()) {
+        Some(Ok(len)) => rouille::ResponseBody::from_reader_and_size(res.into_reader(), len),
+        _ => rouille::ResponseBody::from_reader(res.into_reader()),
+    };
+    
+    Ok(rouille::Response {
+        status_code: status,
+        headers,
+        data: reader,
+        upgrade: None,
+    })
 }

@@ -34,8 +34,8 @@ pub struct Artwork {
     pub comment_count: u32,
 }
 
-pub async fn fetch_artwork(client: &awc::Client, id: u64) -> Result<Artwork, ApiError> {
+pub fn fetch_artwork(client: &ureq::Agent, id: u64) -> Result<Artwork, ApiError> {
     let url = format!("https://www.pixiv.net/ajax/illust/{}", id);
 
-    fetch(client, &url).await
+    fetch(client, &url)
 }

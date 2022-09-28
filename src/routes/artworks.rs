@@ -1,24 +1,18 @@
-use actix_web::{web, Result};
-use maud::{html, Markup, PreEscaped};
+use maud::{html, PreEscaped};
 
 use crate::{
-    api::artwork::fetch_artwork,
+    api::{artwork::fetch_artwork, error::ApiError},
     render::{datetime::DateTimeWrapper, document::document, svg},
     util,
 };
 
-pub fn routes() -> impl actix_web::dev::HttpServiceFactory {
-    web::resource(["/en/artworks/{id}", "/artworks/{id}"]).route(web::get().to(artwork))
-}
-
-async fn artwork(client: web::Data<awc::Client>, id: web::Path<u64>) -> Result<Markup> {
-    let id = id.into_inner();
-    let artwork = fetch_artwork(&client, id).await?;
+pub fn artwork(client: &ureq::Agent, id: u64) -> Result<rouille::Response, ApiError> {
+    let artwork = fetch_artwork(client, id)?;
 
     let image = &artwork.urls.original;
     let date = chrono::DateTime::parse_from_rfc3339(&artwork.create_date);
 
-    let docs = document(
+    let document = document(
         &artwork.illust_title,
         html! {
             /* Title */
@@ -112,5 +106,5 @@ async fn artwork(client: web::Data<awc::Client>, id: web::Path<u64>) -> Result<M
         }),
     );
 
-    Ok(docs)
+    Ok(rouille::Response::html(document.into_string()))
 }

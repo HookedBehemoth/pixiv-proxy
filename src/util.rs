@@ -21,3 +21,34 @@ pub fn scale_by_aspect_ratio(
         (f32::ceil(max_height as f32 * ratio) as u32, max_height)
     }
 }
+
+#[macro_export]
+macro_rules! get_param_or_str {
+    ($request:expr, $name:expr, $default:expr) => {{
+        let option = $request.get_param($name);
+        match option {
+            Some(value) => std::borrow::Cow::from(value),
+            None => std::borrow::Cow::from($default),
+        }
+    }};
+}
+#[macro_export]
+macro_rules! get_param_or_num {
+    ($request:expr, $name:expr, $default:expr) => {{
+        let option = $request.get_param($name);
+        match option {
+            Some(value) => value.parse::<u32>().unwrap_or($default),
+            None => $default,
+        }
+    }};
+}
+#[macro_export]
+macro_rules! get_param_or_enum {
+    ($request:expr, $name:expr, $enum:ty, $default:expr) => {{
+        let option = $request.get_param($name);
+        match option {
+            Some(value) => <$enum>::from_str(&value).unwrap_or($default),
+            None => $default,
+        }
+    }};
+}

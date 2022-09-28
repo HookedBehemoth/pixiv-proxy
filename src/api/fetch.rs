@@ -1,56 +1,57 @@
 use crate::api::{common::ApiResponse, error::ApiError};
 use serde::Deserialize;
 
-async fn fetch_json_internal<T>(request: awc::SendClientRequest) -> Result<T, ApiError>
+fn fetch_json_internal<T>(response: ureq::Response) -> Result<T, ApiError>
 where
     T: for<'a> Deserialize<'a>,
 {
-    match request.await {
-        Ok(mut response) => {
-            if !response.status().is_success() {
-                Err(ApiError::External(
-                    response.status().as_u16(),
-                    String::from_utf8(response.body().await.unwrap().to_vec()).unwrap(),
-                ))
-            } else {
-                match response.json::<T>().await {
-                    Ok(response) => Ok(response),
-                    Err(err) => Err(ApiError::Internal(err.to_string())),
-                }
-            }
+    let status = response.status();
+    if !(200..300).contains(&status) {
+        Err(ApiError::External(
+            response.status(),
+            response.into_string().map_or("".into(), |s| s.into()),
+        ))
+    } else {
+        match response.into_json::<T>() {
+            Ok(res) => Ok(res),
+            Err(err) => Err(ApiError::Internal(err.to_string().into())),
         }
-        Err(err) => Err(ApiError::Internal(err.to_string())),
     }
 }
-pub(crate) async fn fetch_json<T>(client: &awc::Client, url: &str) -> Result<T, ApiError>
+pub(crate) fn fetch_json<T>(client: &ureq::Agent, url: &str) -> Result<T, ApiError>
 where
     T: for<'a> Deserialize<'a>,
 {
-    fetch_json_internal(client.get(url).send()).await
+    fetch_json_internal(client.get(url).call()?)
 }
 
-pub(crate) async fn post_and_fetch_json<T>(
-    client: &awc::Client,
+pub(crate) fn post_and_fetch_json<T>(
+    client: &ureq::Agent,
     url: &str,
     body: String,
 ) -> Result<T, ApiError>
 where
     T: for<'a> Deserialize<'a>,
 {
-    fetch_json_internal(client.post(url).send_body(body)).await
+    fetch_json_internal(
+        client
+            .post(url)
+            .set("Content-Type", "application/x-www-form-urlencoded")
+            .send_string(&body)?,
+    )
 }
 
 /* Fetch from pixiv ajax API */
-pub(crate) async fn fetch<T>(client: &awc::Client, url: &str) -> Result<T, ApiError>
+pub(crate) fn fetch<T>(client: &ureq::Agent, url: &str) -> Result<T, ApiError>
 where
     T: for<'a> Deserialize<'a>,
 {
-    let response = fetch_json::<ApiResponse<T>>(client, url).await?;
+    let response = fetch_json::<ApiResponse<T>>(client, url)?;
 
     if response.error || response.body.is_none() {
         Err(ApiError::External(
             400,
-            response.message.unwrap_or_default(),
+            response.message.map_or("".into(), |s| s.into()),
         ))
     } else {
         Ok(response.body.unwrap())

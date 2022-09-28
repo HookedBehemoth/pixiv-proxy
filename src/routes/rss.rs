@@ -1,55 +1,46 @@
-use actix_web::{get, web, HttpResponse, Result};
 use maud::html;
-use serde::Deserialize;
+use std::str::FromStr;
 
 use crate::{
     api::{
+        error::ApiError,
         search::{fetch_search, SearchMode, SearchOrder, SearchRating, SearchRequest},
         user::{fetch_user_illust_ids, fetch_user_illustrations},
     },
+    get_param_or_enum,
     render::datetime::DateTimeWrapper,
 };
 
-pub fn routes() -> impl actix_web::dev::HttpServiceFactory {
-    rss
-}
-
-#[derive(Deserialize)]
-pub struct RssRequest {
-    qtype: String,
-    #[serde(rename = "q")]
-    words: String,
-    #[serde(rename = "mode", default)]
-    rating: SearchRating,
-    #[serde(rename = "s_mode", default)]
-    mode: SearchMode,
-}
 pub struct RssConfig {
     pub host: String,
 }
 
-#[get("/rss")]
-async fn rss(
-    client: web::Data<awc::Client>,
-    query: web::Query<RssRequest>,
-    config: web::Data<RssConfig>,
-) -> Result<HttpResponse> {
-    let page = match query.qtype.as_str() {
+pub fn rss(
+    client: &ureq::Agent,
+    query: &rouille::Request,
+    config: &RssConfig,
+) -> Result<rouille::Response, ApiError> {
+    let words = query
+        .get_param("q")
+        .ok_or_else(|| ApiError::External(403, "Missing Parameter".into()))?;
+    let qtype = query.get_param("qtype").unwrap();
+    let rating = get_param_or_enum!(query, "rating", SearchRating, SearchRating::All);
+    let mode = get_param_or_enum!(query, "mode", SearchMode, SearchMode::TagsPerfect);
+    let page = match qtype.as_str() {
         "author" => {
-            let user_id = query.words.parse::<u64>().unwrap();
-            let mut ids = fetch_user_illust_ids(&client, user_id).await?;
+            let user_id = words.parse::<u64>().unwrap();
+            let mut ids = fetch_user_illust_ids(&client, user_id)?;
             ids.truncate(60);
-            fetch_user_illustrations(&client, user_id, &ids).await?
+            fetch_user_illustrations(&client, user_id, &ids)?
         }
         _ => {
             let request = SearchRequest {
                 page: 1,
                 order: SearchOrder::DateDescending,
-                rating: query.rating,
-                mode: query.mode,
-                q: None,
+                rating,
+                mode,
             };
-            let search = fetch_search(&client, &query.words, &request).await?;
+            let search = fetch_search(&client, &words, &request)?;
             search.illust_manga.data
         }
     };
@@ -112,20 +103,20 @@ async fn rss(
         })
         .collect();
 
-    let self_url = match query.qtype.as_str() {
+    let self_url = match qtype.as_str() {
         "author" => {
-            format!("{}/rss?type=author&q={}", config.host, query.words)
+            format!("{}/rss?type=author&q={}", config.host, words)
         }
         _ => {
             format!(
                 "{}/rss?type=search&q={}&mode={}&s_mode={}",
-                config.host, query.words, query.rating, query.mode
+                config.host, words, rating, mode
             )
         }
     };
 
     let content = ::rss::ChannelBuilder::default()
-        .title(&query.words)
+        .title(&words)
         .link(self_url)
         .items(items)
         .description("Pixiv RSS")
@@ -133,7 +124,13 @@ async fn rss(
 
     let content = content.to_string();
 
-    Ok(HttpResponse::Ok()
-        .content_type("application/rss+xml; charset=utf-8")
-        .body(content))
+    Ok(rouille::Response {
+        status_code: 200,
+        headers: vec![(
+            "Content-Type".into(),
+            "application/rss+xml; charset=utf-8".into(),
+        )],
+        data: rouille::ResponseBody::from_string(content),
+        upgrade: None,
+    })
 }

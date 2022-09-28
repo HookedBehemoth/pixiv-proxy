@@ -1,50 +1,30 @@
-use actix_web::{get, web, HttpResponse};
-
-pub fn routes() -> impl actix_web::dev::HttpServiceFactory {
-    handle_ugoira
-}
+use crate::api::error::ApiError;
 
 #[cfg(feature = "ugoira")]
-#[get("/ugoira/{id}")]
-pub async fn handle_ugoira(
-    client: web::Data<awc::Client>,
-    id: web::Path<u64>,
-) -> actix_web::Result<HttpResponse> {
+pub fn ugoira(client: &ureq::Agent, id: u64) -> Result<rouille::Response, ApiError> {
     use crate::api::ugoira::{fetch_ugoira_meta, UgoiraFrame};
-    use actix_web::{error, web::Buf};
     use std::{
+        io::BufReader,
         io::{Cursor, Read, Seek, Write},
-        sync::{Arc, Mutex},
     };
-    use tokio::sync::oneshot;
 
-    let meta = fetch_ugoira_meta(&client, id.into_inner()).await?;
+    let meta = fetch_ugoira_meta(&client, id)?;
 
-    let mut ugoira = client
-        .get(&meta.original_src)
-        .send()
-        .await
-        .map_err(error::ErrorInternalServerError)?;
+    let ugoira = client.get(&meta.original_src).call()?;
 
-    let reader = ugoira.body().limit(0x1000000).await.unwrap().reader();
-    let reader = std::io::BufReader::with_capacity(0x4000, reader);
-    let reader: Box<dyn Read + Send> = Box::new(reader);
+    let reader: Box<dyn Read + Send> = Box::new(ugoira.into_reader());
+    let reader = BufReader::with_capacity(0x4000, reader);
 
     struct Opaque<'a> {
-        reader: Box<dyn Read + Send>,
+        reader: BufReader<Box<dyn Read + Send>>,
         file: Option<zip::read::ZipFile<'a>>,
         writer: Cursor<Vec<u8>>,
     }
-    unsafe impl Send for Opaque<'_> {}
-    unsafe impl Sync for Opaque<'_> {}
-
-    let opaque = Opaque {
+    let mut opaque = Opaque {
         reader,
         file: None,
         writer: Cursor::new(Vec::with_capacity(0x100000)),
     };
-
-    let opaque = Arc::new(Mutex::new(opaque));
 
     unsafe extern "C" fn read(opaque: *mut libc::c_void, ptr: *mut u8, sz: i32) -> i32 {
         let opaque = opaque as *mut Opaque<'_>;
@@ -90,41 +70,29 @@ pub async fn handle_ugoira(
         ) -> i32;
     }
 
-    let (sender, receiver) = oneshot::channel::<i32>();
+    let ret = unsafe {
+        convert(
+            &mut opaque as *mut Opaque<'_> as *mut libc::c_void,
+            read,
+            next,
+            write,
+            seek,
+            meta.frames.as_ptr(),
+            meta.frames.len(),
+        )
+    };
 
-    let opaque_clone = opaque.clone();
-
-    std::thread::spawn(move || {
-        let ret = {
-            let mut opaque = opaque_clone.lock().unwrap();
-            let opaque: &mut Opaque = &mut opaque;
-            unsafe {
-                convert(
-                    opaque as *mut Opaque<'_> as *mut libc::c_void,
-                    read,
-                    next,
-                    write,
-                    seek,
-                    meta.frames.as_ptr(),
-                    meta.frames.len(),
-                )
-            }
-        };
-
-        sender.send(ret).unwrap();
-    });
-
-    match receiver.await {
-        Ok(0) => Ok(HttpResponse::Ok()
-            .content_type("video/mp4")
-            .insert_header(("cache-control", "max-age=31536000"))
-            .body(opaque.lock().unwrap().writer.clone().into_inner())),
-        _ => Ok(HttpResponse::InternalServerError().finish()),
+    if ret != 0 {
+        Err(ApiError::Internal("Failed to re-encode image".into()))
+    } else {
+        Ok(
+            rouille::Response::from_data("video/mp4", opaque.writer.into_inner())
+                .with_public_cache(365 * 24 * 60 * 60),
+        )
     }
 }
 
 #[cfg(not(feature = "ugoira"))]
-#[get("/ugoira/{id}")]
-pub async fn handle_ugoira(_: web::Path<u64>) -> HttpResponse {
-    HttpResponse::NotImplemented().finish()
+pub fn ugoira(_: &ureq::Agent, _: u64) -> Result<rouille::Response, ApiError> {
+    Err(ApiError::External(418, "Feature not enabled".into()))
 }

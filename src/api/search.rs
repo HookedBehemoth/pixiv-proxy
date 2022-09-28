@@ -1,3 +1,7 @@
+use std::str::FromStr;
+
+use crate::get_param_or_num;
+
 use super::{common::PixivSearchResult, error::ApiError, fetch::fetch};
 use serde::Deserialize;
 
@@ -40,15 +44,23 @@ impl SearchOrder {
     }
 }
 
-impl std::fmt::Display for SearchOrder {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.as_str())
+impl std::str::FromStr for SearchOrder {
+    type Err = ();
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "date_d" => Ok(Self::DateDescending),
+            "date" => Ok(Self::DateAscending),
+            "popular_d" => Ok(Self::Popular),
+            "popular_male_d" => Ok(Self::PopularMale),
+            "popular_female_d" => Ok(Self::PopularFemale),
+            _ => Err(()),
+        }
     }
 }
 
-impl Default for SearchOrder {
-    fn default() -> Self {
-        SearchOrder::DateDescending
+impl std::fmt::Display for SearchOrder {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
     }
 }
 
@@ -72,15 +84,21 @@ impl SearchRating {
     }
 }
 
-impl std::fmt::Display for SearchRating {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.as_str())
+impl std::str::FromStr for SearchRating {
+    type Err = ();
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "all" => Ok(Self::All),
+            "r18" => Ok(Self::Adult),
+            "safe" => Ok(Self::Safe),
+            _ => Err(()),
+        }
     }
 }
 
-impl Default for SearchRating {
-    fn default() -> Self {
-        SearchRating::All
+impl std::fmt::Display for SearchRating {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
     }
 }
 
@@ -104,43 +122,52 @@ impl SearchMode {
     }
 }
 
+impl std::str::FromStr for SearchMode {
+    type Err = ();
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "s_tag_full" => Ok(Self::TagsPerfect),
+            "s_tag" => Ok(Self::TagsPartial),
+            "s_tc" => Ok(Self::TitleCaption),
+            _ => Err(()),
+        }
+    }
+}
+
 impl std::fmt::Display for SearchMode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(self.as_str())
     }
 }
 
-impl Default for SearchMode {
-    fn default() -> Self {
-        SearchMode::TagsPerfect
+#[derive(Debug)]
+pub struct SearchRequest {
+    pub page: u32,
+    pub order: SearchOrder,
+    pub rating: SearchRating,
+    pub mode: SearchMode,
+    // pub q: Option<String>,
+}
+
+impl From<&rouille::Request> for SearchRequest {
+    fn from(req: &rouille::Request) -> Self {
+        Self {
+            page: get_param_or_num!(req, "p", 1),
+            order: req.get_param("order").map(|s| SearchOrder::from_str(&s).unwrap()).unwrap_or(SearchOrder::DateDescending),
+            rating: req.get_param("mode").map(|s| SearchRating::from_str(&s).unwrap()).unwrap_or(SearchRating::All),
+            mode: req.get_param("s_mode").map(|s| SearchMode::from_str(&s).unwrap()).unwrap_or(SearchMode::TagsPerfect),
+        }
     }
 }
 
-fn page_default() -> u32 {
-    1
-}
-
-#[derive(Debug, Deserialize)]
-pub struct SearchRequest {
-    #[serde(rename = "p", default = "page_default")]
-    pub page: u32,
-    #[serde(default)]
-    pub order: SearchOrder,
-    #[serde(rename = "mode", default)]
-    pub rating: SearchRating,
-    #[serde(rename = "s_mode", default)]
-    pub mode: SearchMode,
-    pub q: Option<String>,
-}
-
 // https://www.pixiv.net/ajax/search/artworks/世話やきキツネの仙狐さん?word=世話やきキツネの仙狐さん&order=date_d&mode=r18&p=3&s_mode=s_tag&type=all&lang=en
-pub async fn fetch_search(
-    client: &awc::Client,
+pub fn fetch_search(
+    client: &ureq::Agent,
     tags: &str,
     query: &SearchRequest,
 ) -> Result<PixivSearch, ApiError> {
     let tags = percent_encoding::utf8_percent_encode(tags, percent_encoding::NON_ALPHANUMERIC);
     let url = format!("https://www.pixiv.net/ajax/search/artworks/{}?word={}&order={}&mode={}&p={}&s_mode={}&type=all&lang=en", &tags, &tags, query.order, query.rating, query.page, query.mode);
 
-    fetch(client, &url).await
+    fetch(client, &url)
 }

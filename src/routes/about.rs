@@ -1,14 +1,8 @@
 use crate::render::document::document;
-use actix_web::{get, Responder};
 use maud::html;
 
-pub fn routes() -> impl actix_web::dev::HttpServiceFactory {
-    about
-}
-
-#[get("/about")]
-async fn about() -> impl Responder {
-    document(
+pub fn about() -> rouille::Response {
+    let document = document(
         "About",
         html! {
             h1 { "About" }
@@ -22,5 +16,7 @@ async fn about() -> impl Responder {
             p { "This project is licensed under the " a href="https://www.gnu.org/licenses/licenses.html#AGPL" { "GNU Affero General Public License" } "." }
         },
         None,
-    )
+    );
+
+    rouille::Response::html(document.into_string())
 }

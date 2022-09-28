@@ -60,8 +60,8 @@ pub struct RankingItem {
     pub illust_upload_timestamp: u64,
 }
 
-pub async fn fetch_ranking(
-    client: &awc::Client,
+pub fn fetch_ranking(
+    client: &ureq::Agent,
     date: Option<&String>,
     page: u32,
 ) -> Result<Ranking, ApiError> {
@@ -72,5 +72,5 @@ pub async fn fetch_ranking(
         date.unwrap_or_else(|| "".to_string())
     );
 
-    fetch_json::<Ranking>(client, &url).await
+    fetch_json::<Ranking>(client, &url)
 }

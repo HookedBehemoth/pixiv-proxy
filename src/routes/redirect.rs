@@ -1,50 +1,29 @@
-use actix_web::{get, web, HttpRequest, HttpResponse, Result};
+use crate::api::error::ApiError;
 
-pub fn routes() -> impl actix_web::dev::HttpServiceFactory {
-    (jump, legacy_illust, fanbox)
-}
-
-#[get("/jump.php")]
-async fn jump(path: HttpRequest) -> HttpResponse {
-    let destination = path.query_string();
+pub fn jump(path: &rouille::Request) -> Result<rouille::Response, ApiError> {
+    let destination = path.raw_query_string();
     let destination = percent_encoding::percent_decode_str(destination)
         .decode_utf8_lossy()
         .into_owned();
 
-    HttpResponse::PermanentRedirect()
-        .append_header(("Location", destination))
-        .finish()
+    Ok(rouille::Response::redirect_301(destination))
 }
 
-#[derive(serde::Deserialize)]
-struct RedirectLegacy {
-    illust_id: u64,
+pub fn legacy_illust(query: &rouille::Request) -> Result<rouille::Response, ApiError> {
+    let illust_id = query
+        .get_param("illust_id")
+        .ok_or_else(|| ApiError::External(402, "Missing illust ID".into()))?;
+    let destination = format!("/artworks/{}", illust_id);
+    Ok(rouille::Response::redirect_301(destination))
 }
 
-#[get("/member_illust.php")]
-async fn legacy_illust(query: web::Query<RedirectLegacy>) -> HttpResponse {
-    println!("legacy {}", query.illust_id);
-    let destination = format!("/artworks/{}", query.illust_id);
-    HttpResponse::PermanentRedirect()
-        .append_header(("Location", destination))
-        .finish()
-}
-
-#[get("/fanbox/creator/{id}")]
-async fn fanbox(client: web::Data<awc::Client>, id: web::Path<u64>) -> Result<HttpResponse> {
+pub fn fanbox(client: &ureq::Agent, id: u64) -> Result<rouille::Response, ApiError> {
     let url = format!("https://www.pixiv.net/fanbox/creator/{}", id);
-    let response = client
-        .get(&url)
-        .send()
-        .await
-        .map_err(actix_web::error::ErrorNotFound)?;
+    let response = client.get(&url).call()?;
 
-    let location = response
-        .headers()
-        .get("Location")
-        .ok_or_else(|| actix_web::error::ErrorNotFound(""))?;
+    let destination = response
+        .header("Location")
+        .ok_or_else(|| ApiError::External(404, "User not found".into()))?;
 
-    Ok(HttpResponse::PermanentRedirect()
-        .append_header(("Location", location))
-        .finish())
+    Ok(rouille::Response::redirect_301(destination.to_owned()))
 }
