@@ -89,6 +89,7 @@ fn main() -> std::io::Result<()> {
             .tls_config(tls_config)
             .user_agent(USER_AGENT)
             .middleware(middleware)
+            .redirects(0)
             .build()
     };
 
