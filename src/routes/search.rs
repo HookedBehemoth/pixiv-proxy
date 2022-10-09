@@ -16,7 +16,7 @@ pub fn tags(
     tags: &str,
     request: &rouille::Request,
 ) -> Result<rouille::Response, ApiError> {
-    render_search(client, &tags, request)
+    render_search(client, tags, request)
 }
 
 pub fn query_search(

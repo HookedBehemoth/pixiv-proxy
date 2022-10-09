@@ -29,9 +29,9 @@ pub fn rss(
     let page = match qtype.as_str() {
         "author" => {
             let user_id = words.parse::<u64>().unwrap();
-            let mut ids = fetch_user_illust_ids(&client, user_id)?;
+            let mut ids = fetch_user_illust_ids(client, user_id)?;
             ids.truncate(60);
-            fetch_user_illustrations(&client, user_id, &ids)?
+            fetch_user_illustrations(client, user_id, &ids)?
         }
         _ => {
             let request = SearchRequest {
@@ -40,7 +40,7 @@ pub fn rss(
                 rating,
                 mode,
             };
-            let search = fetch_search(&client, &words, &request)?;
+            let search = fetch_search(client, &words, &request)?;
             search.illust_manga.data
         }
     };

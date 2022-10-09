@@ -14,7 +14,7 @@ pub fn comments(
     let offset = get_param_or_num!(query, "offset", 0);
     let limit = get_param_or_num!(query, "limit", 100);
 
-    let roots = fetch_comments(&client, id, offset, limit)?;
+    let roots = fetch_comments(client, id, offset, limit)?;
 
     let document = html! {
         ul.comments {
@@ -39,7 +39,7 @@ pub fn replies(
 ) -> Result<rouille::Response, ApiError> {
     let page = get_param_or_num!(query, "page", 1);
 
-    let replies = fetch_replies(&client, id, page)?;
+    let replies = fetch_replies(client, id, page)?;
 
     let document = html! {
         @if replies.has_next {

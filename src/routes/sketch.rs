@@ -12,7 +12,7 @@ use crate::{
 use maud::html;
 
 pub fn sketch_public(client: &ureq::Agent) -> Result<rouille::Response, ApiError> {
-    let wall = fetch_public_wall(&client, None, None)?.data;
+    let wall = fetch_public_wall(client, None, None)?.data;
 
     let document = document(
         "Sketch",
@@ -31,7 +31,7 @@ pub fn sketch_public(client: &ureq::Agent) -> Result<rouille::Response, ApiError
 }
 
 pub fn sketch_tags(client: &ureq::Agent, tag: &str) -> Result<rouille::Response, ApiError> {
-    let wall = fetch_tag_wall(&client, &tag)?.data;
+    let wall = fetch_tag_wall(client, tag)?.data;
 
     let document = document(
         "Sketch",
@@ -50,7 +50,7 @@ pub fn sketch_tags(client: &ureq::Agent, tag: &str) -> Result<rouille::Response,
 }
 
 pub fn sketch_user(client: &ureq::Agent, id: u64) -> Result<rouille::Response, ApiError> {
-    let user = fetch_user(&client, id)?;
+    let user = fetch_user(client, id)?;
 
     // TODO
     let ajax = serde_json::to_string_pretty(&user).unwrap();
@@ -59,7 +59,7 @@ pub fn sketch_user(client: &ureq::Agent, id: u64) -> Result<rouille::Response, A
 }
 
 pub fn sketch_item(client: &ureq::Agent, id: u64) -> Result<rouille::Response, ApiError> {
-    let item = fetch_item(&client, id)?;
+    let item = fetch_item(client, id)?;
 
     let ajax = serde_json::to_string_pretty(&item).unwrap();
 
@@ -67,7 +67,7 @@ pub fn sketch_item(client: &ureq::Agent, id: u64) -> Result<rouille::Response, A
 }
 
 pub fn sketch_lives(client: &ureq::Agent) -> Result<rouille::Response, ApiError> {
-    let lives = fetch_lives(&client, 20, "audience_count")?;
+    let lives = fetch_lives(client, 20, "audience_count")?;
 
     let ajax = serde_json::to_string_pretty(&lives).unwrap();
 
@@ -75,7 +75,7 @@ pub fn sketch_lives(client: &ureq::Agent) -> Result<rouille::Response, ApiError>
 }
 
 pub fn sketch_impressions(client: &ureq::Agent, id: u64) -> Result<rouille::Response, ApiError> {
-    let impressions = fetch_feedbacks(&client, id)?;
+    let impressions = fetch_feedbacks(client, id)?;
 
     let ajax = serde_json::to_string_pretty(&impressions).unwrap();
 

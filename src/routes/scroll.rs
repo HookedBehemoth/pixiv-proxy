@@ -23,7 +23,7 @@ pub fn scroll(
             super::users::fetch_illustrations(client, user_id, query.page, &words, false)?
         }
         _ => {
-            let search = fetch_search(&client, &words, &query)?;
+            let search = fetch_search(client, &words, &query)?;
             (search.illust_manga.data, search.illust_manga.total)
         }
     };

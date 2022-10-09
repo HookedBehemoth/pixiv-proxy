@@ -18,7 +18,7 @@ pub fn artworks(
     id: u64,
     query: &rouille::Request,
 ) -> Result<rouille::Response, ApiError> {
-    user(&client, id, query, false)
+    user(client, id, query, false)
 }
 
 pub fn bookmarks(
@@ -26,7 +26,7 @@ pub fn bookmarks(
     id: u64,
     query: &rouille::Request,
 ) -> Result<rouille::Response, ApiError> {
-    user(&client, id, query, true)
+    user(client, id, query, true)
 }
 
 fn user(

@@ -94,7 +94,7 @@ fn main() -> std::io::Result<()> {
     };
 
     /* Build RSS config */
-    let rss_config = routes::rss::RssConfig { host: host.clone() };
+    let rss_config = routes::rss::RssConfig { host };
 
     let address = format!("0.0.0.0:{}", port);
     rouille::start_server(&address, move |request| {

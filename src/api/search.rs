@@ -18,7 +18,7 @@ pub struct PixivSearch {
     // pub related_tags: Vec<String>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
 pub enum SearchOrder {
     #[serde(rename = "date_d")]
     DateDescending,
@@ -64,7 +64,7 @@ impl std::fmt::Display for SearchOrder {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
 pub enum SearchRating {
     #[serde(rename = "all")]
     All,
@@ -102,7 +102,7 @@ impl std::fmt::Display for SearchRating {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
 pub enum SearchMode {
     #[serde(rename = "s_tag_full")]
     TagsPerfect,
@@ -155,15 +155,15 @@ impl From<&rouille::Request> for SearchRequest {
             page: get_param_or_num!(req, "p", 1),
             order: req
                 .get_param("order")
-                .map(|s| SearchOrder::from_str(&s).unwrap())
+                .and_then(|s| SearchOrder::from_str(&s).ok())
                 .unwrap_or(SearchOrder::DateDescending),
             rating: req
                 .get_param("mode")
-                .map(|s| SearchRating::from_str(&s).unwrap())
+                .and_then(|s| SearchRating::from_str(&s).ok())
                 .unwrap_or(SearchRating::All),
             mode: req
                 .get_param("s_mode")
-                .map(|s| SearchMode::from_str(&s).unwrap())
+                .and_then(|s| SearchMode::from_str(&s).ok())
                 .unwrap_or(SearchMode::TagsPerfect),
         }
     }

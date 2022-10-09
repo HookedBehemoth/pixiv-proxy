@@ -14,13 +14,13 @@ impl From<ureq::Error> for ApiError {
                 response
                     .into_string()
                     .map(Cow::from)
-                    .unwrap_or(Cow::from("")),
+                    .unwrap_or_else(|_| Cow::from("")),
             ),
             ureq::Error::Transport(transport) => Self::Internal(
                 transport
                     .message()
                     .map(|s| s.to_owned().into())
-                    .unwrap_or("Unknown Transport Error".into()),
+                    .unwrap_or_else(|| "Unknown Transport Error".into()),
             ),
         }
     }

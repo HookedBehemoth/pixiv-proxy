@@ -29,7 +29,7 @@ pub fn stamp(
         id
     );
 
-    proxy(&client, &url, request)
+    proxy(client, &url, request)
 }
 
 /* Note: passing these to the client should be avoided */
