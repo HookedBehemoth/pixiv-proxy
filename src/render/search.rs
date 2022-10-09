@@ -55,8 +55,8 @@ pub fn render_options(
                 (make_option("By Popularity (Female)", SearchOrder::PopularFemale, order));
             }
             select name="s_mode" {
-                (make_option("Tags (partial match)", SearchMode::TagsPerfect, mode));
-                (make_option("Tags (perfect match)", SearchMode::TagsPartial, mode));
+                (make_option("Tags (perfect match)", SearchMode::TagsPerfect, mode));
+                (make_option("Tags (partial match)", SearchMode::TagsPartial, mode));
                 (make_option("Title, Caption", SearchMode::TitleCaption, mode));
             }
             button type="submit" { "Search" }
