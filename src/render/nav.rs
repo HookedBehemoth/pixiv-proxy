@@ -17,7 +17,7 @@ pub fn render_nav(current_page: u32, count: usize, limit: usize, template: &str)
                         a href=(&link) { (page) }
                     }
                 }
-                a href=(format!("{}{}", template, max - 1)) { ">>" }
+                a href=(format!("{}{}", template, max)) { ">>" }
             }
         }
     }
