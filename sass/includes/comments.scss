@@ -30,8 +30,13 @@
         }
 
         .content {
-            margin: 4px 0;
+            margin: 0;
             white-space: pre-wrap;
+
+            img.emoji {
+                margin: 0 2px;
+                vertical-align: -6px;
+            }
         }
 
         .date {
