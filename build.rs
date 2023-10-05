@@ -6,9 +6,9 @@ use std::path::PathBuf;
 #[cfg(feature = "ugoira")]
 mod ugoira {
     pub fn compile() {
-        compile_converter();
         compile_x264();
         compile_libav();
+        compile_converter();
     }
 
     fn compile_converter() {
@@ -62,40 +62,64 @@ mod ugoira {
             .status()
             .unwrap();
 
-        let prefix_dir = output_base_path.join("x264-out");
+        // Command's path is not relative to command's current_dir
+        let configure_path = source_dir.join("configure");
+        assert!(configure_path.exists());
+        let mut configure = Command::new(&configure_path);
+        configure.current_dir(&source_dir);
 
-        let _ = Command::new("sh")
-            .current_dir(&source_dir)
-            .args(&[
-                "configure",
-                &format!("--prefix={}", prefix_dir.display()),
-                "--enable-static",
-                "--disable-cli",
-                "--disable-opencl",
-                "--bit-depth=8",
-                "--disable-avs",
-                "--disable-swscale",
-                "--disable-lavf",
-                "--disable-ffms",
-                "--disable-gpac",
-                "--disable-lsmash",
-            ])
+        if env::var("TARGET").unwrap() != env::var("HOST").unwrap() {
+            // Rust targets are subtly different than naming scheme for compiler prefixes.
+            // The cc crate has the messy logic of guessing a working prefix,
+            // and this is a messy way of reusing that logic.
+            let cc = cc::Build::new();
+            let compiler = cc.get_compiler();
+            let compiler = compiler.path().file_stem().unwrap().to_str().unwrap();
+            let suffix_pos = compiler.rfind('-').unwrap(); // cut off "-gcc"
+            let prefix = compiler[0..suffix_pos].trim_end_matches("-wr"); // "wr-c++" compiler
+
+            configure.arg(format!("--cross-prefix={}-", prefix));
+
+            env::set_var("STRINGS", "strings");
+            env::set_var("RANLIB", "ranlib");
+            env::set_var("STRIP", "strip");
+            env::set_var("AR", "ar");
+        }
+
+        configure.arg(format!("--prefix={}", search().to_string_lossy()));
+        configure.arg("--enable-static");
+        configure.arg("--disable-cli");
+        configure.arg("--disable-opencl");
+        configure.arg("--bit-depth=8");
+        configure.arg("--disable-avs");
+        configure.arg("--disable-swscale");
+        configure.arg("--disable-lavf");
+        configure.arg("--disable-ffms");
+        configure.arg("--disable-gpac");
+        configure.arg("--disable-lsmash");
+
+        assert!(configure
             .status()
-            .unwrap();
+            .unwrap()
+            .success());
 
-        let _ = Command::new("make")
+        assert!(Command::new("make")
             .current_dir(&source_dir)
             .arg("-j")
             .status()
-            .unwrap();
+            .unwrap()
+            .success());
 
-        let _ = Command::new("make")
+        assert!(Command::new("make")
             .current_dir(&source_dir)
             .arg("install")
             .status()
-            .unwrap();
+            .unwrap()
+            .success());
 
-        println!("cargo:rustc-link-search=native={}/lib", prefix_dir.display());
+        env::set_var("PKG_CONFIG_SYSROOT_DIR", search());
+
+        println!("cargo:rustc-link-search=native={}/lib", search().display());
 
         println!("cargo:rustc-link-lib=static=x264");
     }
@@ -109,7 +133,7 @@ mod ugoira {
     use std::process::Command;
     use std::str;
 
-    const BRANCH: &str = "release/5.1";
+    const BRANCH: &str = "release/6.0";
 
     fn output() -> PathBuf {
         PathBuf::from(env::var("OUT_DIR").unwrap())
@@ -158,6 +182,8 @@ mod ugoira {
 
         configure.arg(format!("--prefix={}", search().to_string_lossy()));
 
+        env::set_var("PKG_CONFIG_PATH", format!("{}/lib/pkgconfig", search().to_string_lossy()));
+
         if env::var("TARGET").unwrap() != env::var("HOST").unwrap() {
             // Rust targets are subtly different than naming scheme for compiler prefixes.
             // The cc crate has the messy logic of guessing a working prefix,
@@ -177,6 +203,10 @@ mod ugoira {
                 "--target_os={}",
                 env::var("CARGO_CFG_TARGET_OS").unwrap()
             ));
+            configure.arg("--pkg-config=pkg-config");
+            configure.arg("--nm=nm");
+            configure.arg("--ar=ar");
+            configure.arg("--ranlib=ranlib");
         }
 
         // control debug build
@@ -209,7 +239,7 @@ mod ugoira {
         configure.arg("--enable-gpl");
 
         // jpeg input
-        configure.arg("--enable-demuxer=image_jpeg_pipe");
+        configure.arg("--enable-demuxer=image_jpeg_pipe,mjpeg");
         configure.arg("--enable-parser=mjpeg");
         configure.arg("--enable-decoder=mjpeg");
 
@@ -294,7 +324,7 @@ mod ugoira {
                 .map(|flag| &flag[2..]);
 
             for lib in include_libs {
-                println!("cargo:rustc-link-lib={}", lib);
+                println!("cargo:rustc-link-lib=static={}", lib);
             }
         }
     }
