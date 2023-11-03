@@ -14,7 +14,10 @@ pub struct PixivSearchResult {
     #[serde(deserialize_with = "deserialize_number_unconditionally")]
     pub id: u64,
     pub title: String,
-    #[serde(rename = "userId", deserialize_with = "deserialize_number_unconditionally")]
+    #[serde(
+        rename = "userId",
+        deserialize_with = "deserialize_number_unconditionally"
+    )]
     pub user_id: u64,
     pub user_name: String,
     /* Note: This appears to always be empty */

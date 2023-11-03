@@ -4,45 +4,49 @@ use crate::render::document::document;
 use maud::html;
 use rouille::input::cookies;
 
-pub struct BlockedUser {
-    /// Display name (only useful for the settings page)
-    pub name: String,
-    pub id: u64,
-}
-
-const SEPERATOR: char = '|';
+const SEPERATOR: &str = "%7C";
 const BLOCKED_COOKIE: &str = "blocked_users";
 
-pub fn get_blocked_users(request: &rouille::Request) -> Vec<BlockedUser> {
-    cookies(request)
-        .find(|&(k, _)| k == BLOCKED_COOKIE)
-        .map(|(_, v)| v)
-        .map(|v| {
-            v.split(SEPERATOR)
-                .map(|v| v.split_once('='))
-                .filter(|v| v.is_some())
-                .map(|v| v.unwrap())
-                .map(|(name, id)| BlockedUser {
-                    name: name.to_string(),
-                    id: id.parse().unwrap_or_default(),
-                })
-                .collect()
-        })
-        .unwrap_or_default()
-}
-
 pub fn get_blocked_userids(request: &rouille::Request) -> HashSet<u64> {
-    let blocked_users = get_blocked_users(request);
-    blocked_users
-        .iter()
+    let Some((_, v)) = cookies(request).find(|&(k, _)| k == BLOCKED_COOKIE) else {
+        return HashSet::new();
+    };
+
+    v.split(SEPERATOR)
+        .map(|id| id.parse::<u64>())
+        .filter(|p| p.is_ok())
         .fold(HashSet::<u64>::new(), |mut set, user| {
-            set.insert(user.id);
+            set.insert(user.unwrap());
             set
         })
 }
 
+fn format_blocked_userids(users: &HashSet<u64>) -> String {
+    users.iter().fold(String::new(), |set, user| {
+        if set.len() == 0 {
+            format!("{user}")
+        } else {
+            format!("{set}|{user}")
+        }
+    })
+}
+
+pub fn set_blocked_userids(response: &mut rouille::Response, users: &HashSet<u64>) {
+    let cookie_value = users.iter().fold(String::new(), |set, user| {
+        if set.len() == 0 {
+            format!("{user}")
+        } else {
+            format!("{set}%7C{user}")
+        }
+    });
+    response.headers.push((
+        "Set-Cookie".into(),
+        format!("{BLOCKED_COOKIE}={cookie_value}; Path=/").into(),
+    ));
+}
+
 pub fn index(request: &rouille::Request) -> rouille::Response {
-    let blocked_users = get_blocked_users(request);
+    let blocked_users = get_blocked_userids(request);
 
     let document = document(
         "Settings",
@@ -53,7 +57,7 @@ pub fn index(request: &rouille::Request) -> rouille::Response {
 
             h2 { "Blocked Users" }
             p {
-                "You can either select the \"Block\" Button on a User-Profile or import a list off the format \"[user name]=[user id];...\" here. The name is currently only used for this settings page."
+                "You can either select the \"Block\" Button on a User-Profile or import a list off the format \"12345|23456|34567\" here. The name is currently only used for this settings page."
             }
             div {
                 form action="/settings/blocked/add" method="POST" {
@@ -63,17 +67,22 @@ pub fn index(request: &rouille::Request) -> rouille::Response {
             }
             form action="/settings/blocked/del" method="POST" {
                 ul {
-                    @for user in blocked_users {
+                    @for user in &blocked_users {
                         li {
-                            a href=(format!("/users/{}", user.id)) {
-                                (user.name)
-                                " - "
-                                (user.id)
-                                " - "
-                                input type="submit" name=(user.name) value=(user.id) {}
+                            a href=(format!("/users/{user}")) {
+                                (user)
                             }
+                            input type="submit" name=(user) value="Unblock" {}
                         }
                     }
+                }
+            }
+            @if !blocked_users.is_empty() {
+                p {
+                    "Your current block list goes as follows. You can back it up and import it later on."
+                }
+                p {
+                    (format_blocked_userids(&blocked_users))
                 }
             }
         },
@@ -96,18 +105,27 @@ pub fn blocked_users_add(request: &rouille::Request) -> rouille::Response {
         return redirect;
     };
 
-    let user = user.replace("bulk=", "");
+    let Some((key, value)) = user.split_once('=') else {
+        return redirect;
+    };
 
-    let cookie_value = cookies(request)
-        .find(|&(k, _)| k == BLOCKED_COOKIE)
-        .map(|(_, v)| v)
-        .map(|old| format!("{old}{SEPERATOR}{user}"))
-        .unwrap_or(user);
+    let mut blocked = get_blocked_userids(request);
 
-    redirect.headers.push((
-        "Set-Cookie".into(),
-        format!("{BLOCKED_COOKIE}={cookie_value}; Path=/").into(),
-    ));
+    if key == "bulk" {
+        for id in value
+            .split(SEPERATOR)
+            .map(|v| v.parse::<u64>())
+            .filter(|v| v.is_ok())
+        {
+            blocked.insert(id.unwrap());
+        }
+    } else if let Ok(id) = key.parse::<u64>() {
+        blocked.insert(id);
+    } else {
+        return redirect;
+    }
+
+    set_blocked_userids(&mut redirect, &blocked);
 
     redirect
 }
@@ -125,19 +143,27 @@ pub fn blocked_users_del(request: &rouille::Request) -> rouille::Response {
         return redirect;
     };
 
-    let Some(cookie_value) = cookies(request)
-        .find(|&(k, _)| k == BLOCKED_COOKIE)
-        .map(|(_, v)| v)
-    else {
+    let Some((key, value)) = user.split_once('=') else {
         return redirect;
     };
 
-    let cookie_value = cookie_value.replace(user.as_str(), "");
+    let mut blocked = get_blocked_userids(request);
 
-    redirect.headers.push((
-        "Set-Cookie".into(),
-        format!("{BLOCKED_COOKIE}={cookie_value}; Path=/").into(),
-    ));
+    if key == "bulk" {
+        for id in value
+            .split(SEPERATOR)
+            .map(|v| v.parse::<u64>())
+            .filter(|v| v.is_ok())
+        {
+            blocked.remove(&id.unwrap());
+        }
+    } else if let Ok(id) = key.parse::<u64>() {
+        blocked.remove(&id);
+    } else {
+        return redirect;
+    }
+
+    set_blocked_userids(&mut redirect, &blocked);
 
     redirect
 }

@@ -69,13 +69,11 @@ fn user(
             div {
                 @if blocked_users.contains(&user_id) {
                     form action="/settings/blocked/del" method="POST" {
-                        input type="hidden" name=(user.name) value=(user_id) {}
-                        input type="submit" value="Unblock" { }
+                        input type="submit" name=(user_id) value="Unblock" { }
                     }
                 } @else {
                     form action="/settings/blocked/add" method="POST" {
-                        input type="hidden" name=(user.name) value=(user_id) {}
-                        input type="submit" value="Block" { }
+                        input type="submit" name=(user_id) value="Block" { }
                     }
                 }
             }

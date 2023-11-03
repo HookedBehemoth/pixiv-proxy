@@ -1,6 +1,6 @@
 use crate::api::comments::PixivComment;
+use ::phf::{phf_map, Map};
 use maud::{html, Markup, Render};
-use ::phf::{Map, phf_map};
 
 impl Render for &PixivComment {
     fn render(&self) -> Markup {
@@ -42,14 +42,14 @@ fn render_comment_text(comment: &str) -> Markup {
     let mut seq = String::new();
     while let Some(char) = chars.next() {
         match (in_stamp, char) {
-            (false, '(') =>  {
+            (false, '(') => {
                 in_stamp = true;
                 /* Flush pending comment */
                 if seq.len() > 0 {
                     sequences.push(html! { (seq) });
                     seq = String::new()
                 }
-            },
+            }
             (false, c) => seq.push(c),
             (true, c) => {
                 if char.is_alphanumeric() {
@@ -67,7 +67,7 @@ fn render_comment_text(comment: &str) -> Markup {
                     emoji = String::new();
                     in_stamp = false;
                 }
-            },
+            }
         }
     }
 
