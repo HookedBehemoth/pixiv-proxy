@@ -13,6 +13,8 @@ use crate::{
     render::{alt::render_alt_author, document::document, grid::render_grid, nav::render_nav},
 };
 
+use super::settings::get_blocked_userids;
+
 pub fn artworks(
     client: &ureq::Agent,
     id: u64,
@@ -35,6 +37,8 @@ fn user(
     query: &rouille::Request,
     bookmarks: bool,
 ) -> Result<rouille::Response, ApiError> {
+    let blocked_users = get_blocked_userids(query);
+
     let page = get_param_or_num!(query, "p", 1);
     let query = get_param_or_str!(query, "q", "");
     let user = fetch_user_profile(client, user_id)?;
@@ -63,7 +67,20 @@ fn user(
                 }
             }
             div {
-                (render_grid(&elements))
+                @if blocked_users.contains(&user_id) {
+                    form action="/settings/blocked/del" method="POST" {
+                        input type="hidden" name=(user.name) value=(user_id) {}
+                        input type="submit" value="Unblock" { }
+                    }
+                } @else {
+                    form action="/settings/blocked/add" method="POST" {
+                        input type="hidden" name=(user.name) value=(user_id) {}
+                        input type="submit" value="Block" { }
+                    }
+                }
+            }
+            div {
+                (render_grid(&elements, &blocked_users))
             }
             @if count > 60 {
                 @let format = if !bookmarks {

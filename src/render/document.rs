@@ -13,7 +13,12 @@ pub fn document(title: &str, content: maud::Markup, head: Option<maud::Markup>) 
             }
             body {
                 main { (content) }
-                footer { div { a href="/" { "Home" } " - " a href="/about" { "About" } } }
+                footer { div {
+                    a href="/" { "Home" }
+                    " - "
+                    a href="/settings" { "Settings" }
+                    " - "
+                    a href="/about" { "About" } } }
             }
         }
     }

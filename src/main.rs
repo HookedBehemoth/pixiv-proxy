@@ -155,6 +155,11 @@ fn main() -> std::io::Result<()> {
             (GET) ["/stylesheet.css"] => { Ok(css::style_sheet()) },
             (GET) ["/favicon.ico"] => { Ok(favicon::favicon()) },
 
+            /* Settings */
+            (GET) ["/settings"] => { Ok(settings::index(request)) },
+            (POST) ["/settings/blocked/add"] => { Ok(settings::blocked_users_add(request)) },
+            (POST) ["/settings/blocked/del"] => { Ok(settings::blocked_users_del(request)) },
+
             /* About */
             (GET) ["/about"] => { Ok(about::about()) },
 

@@ -1,8 +1,10 @@
+use std::collections::HashSet;
+
 use crate::{api::common::PixivSearchResult, render::svg};
 
 use maud::html;
 
-pub fn render_grid(list: &[PixivSearchResult]) -> maud::Markup {
+pub fn render_grid(list: &[PixivSearchResult], blocked_users: &HashSet<u64>) -> maud::Markup {
     html! {
         svg style="display:none" {
             defs {
@@ -11,7 +13,7 @@ pub fn render_grid(list: &[PixivSearchResult]) -> maud::Markup {
             }
         }
         ul.search {
-            @for artwork in list {
+            @for artwork in list.iter().filter(|a| !blocked_users.contains(&a.user_id)) {
                 @let link = format!("/artworks/{}", artwork.id);
                 @let link = if !artwork.is_masked { Some(&link) } else { None };
                 @let img = &artwork.url;

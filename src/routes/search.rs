@@ -9,6 +9,7 @@ use crate::{
         alt::render_alt_search, document::document, grid::render_grid, nav::render_nav,
         search::render_options,
     },
+    settings::get_blocked_userids,
 };
 
 pub fn tags(
@@ -34,6 +35,8 @@ fn render_search(
     tags: &str,
     request: &rouille::Request,
 ) -> Result<rouille::Response, ApiError> {
+    let blocked_set = get_blocked_userids(request);
+
     let query = SearchRequest::from(request);
     let search = fetch_search(client, tags, &query)?;
 
@@ -44,10 +47,13 @@ fn render_search(
             (&search.illust_manga.total)
             (render_alt_search(tags, &query))
             (render_options(tags, query.rating, query.order, query.mode))
-            (render_grid(&search.illust_manga.data))
+            (render_grid(&search.illust_manga.data, &blocked_set))
             @if search.illust_manga.total > 60 {
                 @let format = format!("/search?q={}&order={}&mode={}&s_mode={}&p=", tags, query.order, query.rating, query.mode);
                 (render_nav(query.page, search.illust_manga.total, 60, &format))
+            }
+            p {
+                "You have blocked " (blocked_set.len()) " Users. Some entries might be hidden."
             }
         },
         None,
