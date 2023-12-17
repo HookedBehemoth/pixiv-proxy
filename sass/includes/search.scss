@@ -1,13 +1,14 @@
 .search {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+	grid-template-rows: masonry;
     grid-gap: 0.5rem;
     list-style: none;
     padding: 0px;
 
     li {
         width: 200px;
-        height: 240px;
+        height: auto;
         position: relative;
         margin: auto;
         line-height: normal;

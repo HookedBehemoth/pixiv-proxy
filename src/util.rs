@@ -4,6 +4,15 @@ pub fn truncate(s: &str, max_chars: usize) -> &str {
         Some((idx, _)) => &s[..idx],
     }
 }
+
+pub fn image_square_to_master(square: &str) -> String {
+    square
+        .replace("250x250_80_a2", "240x480")
+        .replace("custom-thumb", "img-master")
+        .replace("square1200", "master1200")
+        .replace("custom1200", "master1200")
+}
+
 pub fn scale_by_aspect_ratio(
     width: u32,
     height: u32,
