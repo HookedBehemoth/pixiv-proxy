@@ -7,7 +7,7 @@ pub fn document(title: &str, content: maud::Markup, head: Option<maud::Markup>) 
             head {
                 meta charset="utf-8";
                 title { (title) }
-                link href="/stylesheet.css?v=1" rel="stylesheet";
+                link href="/stylesheet.css?v=2" rel="stylesheet";
                 meta name="viewport" content="width=device-width, initial-scale=1";
                 @if head.is_some() { (head.unwrap()) }
             }
