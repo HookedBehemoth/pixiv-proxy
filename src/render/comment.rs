@@ -57,7 +57,7 @@ fn render_comment_text(comment: &str) -> Markup {
                 } else if c == ')' {
                     if let Some(stamp) = lookup_emoji(&emoji) {
                         sequences.push(html! {
-                            img.emoji src=(stamp) alt=(stamp) width="24" height="24" {}
+                            img.emoji src=(stamp) alt=(emoji) width="24" height="24" {}
                         });
                     } else {
                         seq.push('(');
