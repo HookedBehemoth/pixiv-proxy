@@ -101,12 +101,9 @@ fn main() -> std::io::Result<()> {
         let result = rouille::router!(request,
             /* Front page */
             (GET) ["/"] => { ranking::ranking(&client, request) },
-            (GET) ["/en/"] => { ranking::ranking(&client, request) },
 
             /* Search */
-            (GET) ["/en/tags/{tag}", tag: String] => { search::tags(&client, &tag, request) },
             (GET) ["/tags/{tag}", tag: String] => { search::tags(&client, &tag, request) },
-            (GET) ["/en/tags/{tag}/artworks", tag: String] => { search::tags(&client, &tag, request) },
             (GET) ["/tags/{tag}/artworks", tag: String] => { search::tags(&client, &tag, request) },
             (GET) ["/search"] => { search::query_search(&client, request) },
 
@@ -114,15 +111,11 @@ fn main() -> std::io::Result<()> {
             (GET) ["/scroll"] => { scroll::scroll(&client, request) },
 
             /* Users */
-            (GET) ["/en/users/{id}", id: u64] => { users::artworks(&client, id, request) },
             (GET) ["/users/{id}", id: u64] => { users::artworks(&client, id, request) },
-            (GET) ["/en/users/{id}/artworks", id: u64] => { users::artworks(&client, id, request) },
             (GET) ["/users/{id}/artworks", id: u64] => { users::artworks(&client, id, request) },
-            (GET) ["/en/users/{id}/bookmarks/artworks", id: u64] => { users::bookmarks(&client, id, request) },
             (GET) ["/users/{id}/bookmarks/artworks", id: u64] => { users::bookmarks(&client, id, request) },
 
             /* Artworks */
-            (GET) ["/en/artworks/{id}", id: u64] => { artworks::artwork(&client, id) },
             (GET) ["/artworks/{id}", id: u64] => { artworks::artwork(&client, id) },
 
             /* Comments */
@@ -165,7 +158,9 @@ fn main() -> std::io::Result<()> {
 
             _ => {
                 let path = request.url();
-                if let Some(response) = imageproxy::imageproxy(&client, &path, request) {
+                if let Some(path) = path.strip_prefix("/en") {
+                    Ok(rouille::Response::redirect_301(path.to_owned()))
+                } else if let Some(response) = imageproxy::imageproxy(&client, &path, request) {
                     response
                 } else if let Some(response) = imageproxy::s_imageproxy(&client, &path, request) {
                     response
