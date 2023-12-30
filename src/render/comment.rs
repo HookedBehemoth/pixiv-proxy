@@ -42,7 +42,12 @@ fn render_comment_text(comment: &str) -> Markup {
     let mut seq = String::new();
     while let Some(char) = chars.next() {
         match (in_stamp, char) {
-            (false, '(') => {
+            (_, '(') => {
+                if in_stamp {
+                    seq.push('(');
+                    seq.push_str(&emoji);
+                    emoji = String::new();
+                }
                 in_stamp = true;
                 /* Flush pending comment */
                 if seq.len() > 0 {
@@ -66,6 +71,12 @@ fn render_comment_text(comment: &str) -> Markup {
                     }
                     emoji = String::new();
                     in_stamp = false;
+                } else {
+                    seq.push('(');
+                    seq.push_str(&emoji);
+                    seq.push(c);
+                    emoji = String::new();
+                    in_stamp = false;
                 }
             }
         }
@@ -77,9 +88,9 @@ fn render_comment_text(comment: &str) -> Markup {
                 (seq)
             }
             @if in_stamp && emoji.len() > 0 {
-                span { "(" (emoji) }
+                "(" (emoji)
             } @else if seq.len() > 0 {
-                span { (seq) }
+                (seq)
             }
         }
     };
@@ -133,3 +144,78 @@ const EMOJI_LOOKUP: Map<&str, u16> = phf_map! {
     "teardrop" => 502,
     "star" => 503,
 };
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn basic_comment() {
+        let comment = "Basic Comment without any emoji";
+        let markup = render_comment_text(comment);
+        assert_eq!(
+            markup.into_string(),
+            r#"<p class="content">Basic Comment without any emoji</p>"#
+        );
+    }
+
+    #[test]
+    fn simple_emoji() {
+        let comment = "Basic Comment with (normal) emoji";
+        let markup = render_comment_text(comment);
+        assert_eq!(
+            markup.into_string(),
+            r#"<p class="content">Basic Comment with <img class="emoji" src="/simg/common/images/emoji/101.png" alt="normal" width="24" height="24"></img> emoji</p>"#
+        );
+    }
+
+    #[test]
+    fn end_emoji() {
+        let comment = "Basic comment with the emoji at the end (love3)";
+        let markup = render_comment_text(comment);
+        assert_eq!(
+            markup.into_string(),
+            r#"<p class="content">Basic comment with the emoji at the end <img class="emoji" src="/simg/common/images/emoji/310.png" alt="love3" width="24" height="24"></img></p>"#
+        );
+    }
+
+    #[test]
+    fn unterminated_emoji() {
+        let comment = "Unterminated (normal";
+        let markup = render_comment_text(comment);
+        assert_eq!(
+            markup.into_string(),
+            r#"<p class="content">Unterminated (normal</p>"#
+        )
+    }
+
+    #[test]
+    fn emoji_nested_simple() {
+        let comment = "Emoji ((normal)) nested";
+        let markup = render_comment_text(comment);
+        assert_eq!(
+            markup.into_string(),
+            r#"<p class="content">Emoji (<img class="emoji" src="/simg/common/images/emoji/101.png" alt="normal" width="24" height="24"></img>) nested</p>"#
+        );
+    }
+
+    #[test]
+    fn emoji_nested() {
+        let comment = "Emoji (in colons (normal) nested)";
+        let markup = render_comment_text(comment);
+        assert_eq!(
+            markup.into_string(),
+            r#"<p class="content">Emoji (in colons <img class="emoji" src="/simg/common/images/emoji/101.png" alt="normal" width="24" height="24"></img> nested)</p>"#
+        );
+    }
+
+    #[test]
+    fn non_existant_stamp() {
+        let comment = "Emoji that is (nonexistant)";
+        let markup = render_comment_text(comment);
+        assert_eq!(
+            markup.into_string(),
+            r#"<p class="content">Emoji that is (nonexistant)</p>"#
+        );
+    }
+}
