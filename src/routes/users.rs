@@ -78,7 +78,7 @@ fn user(
                 }
             }
             div {
-                (render_grid(&elements, &blocked_users))
+                (render_grid(&elements, &blocked_users, None))
             }
             @if count > 60 {
                 @let format = if !bookmarks {

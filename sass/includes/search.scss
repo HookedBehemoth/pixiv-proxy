@@ -6,6 +6,19 @@
     list-style: none;
     padding: 0px;
 
+    .load_more {
+        text-align: center;
+        grid-column: span 4;
+
+        button {
+            padding: 12px 50px;
+            border-radius: 25px;
+            color: var(--accent);
+            border-color: var(--accent);
+            background: transparent;
+        }
+    }
+
     li {
         width: 200px;
         height: auto;

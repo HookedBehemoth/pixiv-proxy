@@ -6,7 +6,7 @@ use crate::{
         search::{fetch_search, SearchRequest},
     },
     render::{
-        alt::render_alt_search, document::document, grid::render_grid, nav::render_nav,
+        alt::render_alt_search, document::document, grid::{render_grid, render_grid_contents}, nav::render_nav,
         search::render_options,
     },
     settings::get_blocked_userids,
@@ -40,6 +40,26 @@ fn render_search(
     let query = SearchRequest::from(request);
     let search = fetch_search(client, tags, &query)?;
 
+    let format = format!("/search?q={}&order={}&mode={}&s_mode={}&p=", tags, query.order, query.rating, query.mode);
+    let next_page_ajax = format!("{}{}&ajax=", format, query.page + 1);
+    let load_more = Some(html! {
+        div.load_more {
+            button endpoint=(next_page_ajax) onclick="inject(this, true, true)" {
+                "Load more..."
+            }
+        }
+    });
+
+    if let Some(_) = request.get_param("ajax") {
+        let document = html! {
+            (render_grid_contents(&search.illust_manga.data, &blocked_set))
+            @if let Some(load_more) = load_more {
+                (load_more)
+            }
+        };
+        return Ok(rouille::Response::html(document.into_string()));
+    }
+
     let document = document(
         tags,
         html! {
@@ -47,16 +67,22 @@ fn render_search(
             (&search.illust_manga.total)
             (render_alt_search(tags, &query))
             (render_options(tags, query.rating, query.order, query.mode))
-            (render_grid(&search.illust_manga.data, &blocked_set))
+            (render_grid(&search.illust_manga.data, &blocked_set, load_more))
             @if search.illust_manga.total > 60 {
-                @let format = format!("/search?q={}&order={}&mode={}&s_mode={}&p=", tags, query.order, query.rating, query.mode);
+                // @if roots.has_next {
+                    // (load_more)
+                // }
                 (render_nav(query.page, search.illust_manga.total, 60, &format))
             }
             p {
                 "You have blocked " (blocked_set.len()) " Users. Some entries might be hidden."
             }
         },
-        None,
+        Some(html! {
+            script {
+                (maud::PreEscaped(include_str!("../dynamic.js")))
+            }
+        }),
     );
 
     Ok(rouille::Response::html(document.into_string()))
