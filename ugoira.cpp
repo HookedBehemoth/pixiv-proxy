@@ -4,11 +4,6 @@ extern "C" {
 #include <libavutil/avutil.h>
 #include <libavutil/opt.h>
 #include <libswscale/swscale.h>
-
-int ReadFunc(void *opaque, uint8_t *buf, int buf_size);
-void NextFunc(void *opaque);
-int WriteFunc(void *opaque, uint8_t *buf, int buf_size);
-int64_t SeekFunc(void *opaque, int64_t offset, int whence);
 }
 
 namespace {
@@ -46,6 +41,11 @@ namespace {
             re = gcd(re, frames[i].delay);
         return FFMIN(1000 / ((float)re), 60.0f);
     }
+
+    using ReadFuncProto = int (*)(void *opaque, uint8_t *buf, int buf_size);
+    using NextFuncProto = void (*)(void *opaque);
+    using WriteFuncProto = int (*)(void *opaque, uint8_t *buf, int buf_size);
+    using SeekFuncProto = int64_t (*)(void *opaque, int64_t offset, int whence);
 
 #define CHECK_RESULT(exp)                                                    \
     do {                                                                     \
@@ -98,6 +98,10 @@ namespace {
 
 extern "C" int convert(
     void *opaque,
+    ReadFuncProto read,
+    NextFuncProto next,
+    WriteFuncProto write,
+    SeekFuncProto seek,
     const UgoiraFrame *frames,
     size_t frame_count) {
     av_log_set_level(AV_LOG_ERROR);
@@ -116,7 +120,7 @@ extern "C" int convert(
     CHECK_NULL(buffer);
     auto _buffer_guard = ScopeGuard([&]() { av_free(buffer); });
 
-    auto oioc = avio_alloc_context(buffer, 0x4000, 1, opaque, nullptr, WriteFunc, SeekFunc);
+    auto oioc = avio_alloc_context(buffer, 0x4000, 1, opaque, nullptr, write, seek);
     CHECK_NULL(oioc);
     auto _oioc_guard = ScopeGuard([&]() { av_freep(&oioc->buffer);
                                          avio_context_free(&oioc); });
@@ -161,13 +165,13 @@ extern "C" int convert(
         CHECK_NULL(ic);
         auto _ic_guard = ScopeGuard([&]() { avformat_free_context(ic); });
 
-        NextFunc(opaque);
+        next(opaque);
 
         auto buffer = (unsigned char *)av_malloc(0x4000);
         CHECK_NULL(buffer);
         auto _buffer_guard = ScopeGuard([&]() { av_free(buffer); });
 
-        auto iioc = avio_alloc_context(buffer, 0x4000, 0, opaque, ReadFunc, nullptr, nullptr);
+        auto iioc = avio_alloc_context(buffer, 0x4000, 0, opaque, read, nullptr, nullptr);
         CHECK_NULL(iioc);
         auto _iioc_guard = ScopeGuard([&]() { av_freep(&iioc->buffer);
                                          avio_context_free(&iioc); });

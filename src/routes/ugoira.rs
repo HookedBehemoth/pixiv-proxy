@@ -26,15 +26,13 @@ pub fn ugoira(client: &ureq::Agent, id: u64) -> Result<rouille::Response, ApiErr
         writer: Cursor::new(Vec::with_capacity(0x100000)),
     };
 
-    #[no_mangle]
-    unsafe extern "C" fn ReadFunc(opaque: *mut libc::c_void, ptr: *mut u8, sz: i32) -> i32 {
+    unsafe extern "C" fn read(opaque: *mut libc::c_void, ptr: *mut u8, sz: i32) -> i32 {
         let opaque = opaque as *mut Opaque<'_>;
         let slice = std::slice::from_raw_parts_mut(ptr, sz as usize);
         let file = (*opaque).file.as_mut().unwrap();
         file.read(slice).unwrap() as i32
     }
-    #[no_mangle]
-    unsafe extern "C" fn NextFunc(opaque: *mut libc::c_void) {
+    unsafe extern "C" fn next(opaque: *mut libc::c_void) {
         let opaque = opaque as *mut Opaque<'_>;
         let reader = &mut (*opaque).reader;
         (*opaque).file = Some(
@@ -43,15 +41,13 @@ pub fn ugoira(client: &ureq::Agent, id: u64) -> Result<rouille::Response, ApiErr
                 .unwrap(),
         );
     }
-    #[no_mangle]
-    unsafe extern "C" fn WriteFunc(opaque: *mut libc::c_void, ptr: *mut u8, sz: i32) -> i32 {
+    unsafe extern "C" fn write(opaque: *mut libc::c_void, ptr: *mut u8, sz: i32) -> i32 {
         let opaque = opaque as *mut Opaque<'_>;
         let slice = std::slice::from_raw_parts(ptr, sz as usize);
         (*opaque).writer.write_all(slice).unwrap();
         sz
     }
-    #[no_mangle]
-    unsafe extern "C" fn SeekFunc(opaque: *mut libc::c_void, offset: i64, whence: i32) -> i64 {
+    unsafe extern "C" fn seek(opaque: *mut libc::c_void, offset: i64, whence: i32) -> i64 {
         let opaque = opaque as *mut Opaque<'_>;
         let position = match whence {
             0 => std::io::SeekFrom::Start(offset as u64),
@@ -65,6 +61,10 @@ pub fn ugoira(client: &ureq::Agent, id: u64) -> Result<rouille::Response, ApiErr
     extern "C" {
         fn convert(
             opaque: *mut libc::c_void,
+            read: unsafe extern "C" fn(*mut libc::c_void, *mut u8, i32) -> i32,
+            next: unsafe extern "C" fn(*mut libc::c_void),
+            write: unsafe extern "C" fn(*mut libc::c_void, *mut u8, i32) -> i32,
+            seek: unsafe extern "C" fn(*mut libc::c_void, i64, i32) -> i64,
             frames: *const UgoiraFrame,
             frame_count: usize,
         ) -> i32;
@@ -73,6 +73,10 @@ pub fn ugoira(client: &ureq::Agent, id: u64) -> Result<rouille::Response, ApiErr
     let ret = unsafe {
         convert(
             &mut opaque as *mut Opaque<'_> as *mut libc::c_void,
+            read,
+            next,
+            write,
+            seek,
             meta.frames.as_ptr(),
             meta.frames.len(),
         )
