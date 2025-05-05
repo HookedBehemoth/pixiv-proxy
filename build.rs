@@ -5,6 +5,10 @@ use std::path::PathBuf;
 
 #[cfg(feature = "ugoira")]
 fn compile_ugoira() {
+    let ffmpeg = vcpkg::Config::new()
+        .emit_includes(true)
+        .find_package("ffmpeg").unwrap();
+
     use std::path::Path;
 
     let is_debug = env::var_os("PROFILE") == Some("debug".into());
@@ -20,18 +24,19 @@ fn compile_ugoira() {
     build
         .cpp(true)
         .file("ugoira.cpp")
+        .includes(ffmpeg.include_paths)
         .define("__STDC_CONSTANT_MACROS", None)
         .opt_level(if is_debug { 0 } else { 3 });
 
-    if build.get_compiler().is_like_msvc() {
-        let ffmpeg_dir = env::var("FFMPEG_DIR").unwrap();
+    // if build.get_compiler().is_like_msvc() {
+    //     let ffmpeg_dir = env::var("FFMPEG_DIR").unwrap();
 
-        let include_dir = Path::new(&ffmpeg_dir).join("include");
-        build.include(include_dir.display().to_string());
+    //     let include_dir = Path::new(&ffmpeg_dir).join("include");
+    //     build.include(include_dir.display().to_string());
 
-        let lib_dir = Path::new(&ffmpeg_dir).join("lib");
-        println!("cargo:rustc-link-search=native={}", lib_dir.display());
-    }
+    //     let lib_dir = Path::new(&ffmpeg_dir).join("lib");
+    //     println!("cargo:rustc-link-search=native={}", lib_dir.display());
+    // }
 
     build.compile("ugoira.a");
 
