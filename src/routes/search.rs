@@ -50,7 +50,7 @@ fn render_search(
         }
     });
 
-    if let Some(_) = request.get_param("ajax") {
+    if request.get_param("ajax").is_some() {
         let document = html! {
             (render_grid_contents(&search.illust_manga.data, &blocked_set))
             @if let Some(load_more) = load_more {

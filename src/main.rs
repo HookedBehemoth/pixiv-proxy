@@ -5,6 +5,11 @@ mod util;
 
 use api::error::ApiError;
 use routes::*;
+use ureq::{
+    http::{self, HeaderValue},
+    middleware::MiddlewareNext,
+    Body, SendBody,
+};
 
 const USER_AGENT: &str = "Mozilla/5.0 (X11; Linux x86_64; rv:103.0) Gecko/20100101 Firefox/103.0";
 
@@ -21,15 +26,17 @@ fn main() -> std::io::Result<()> {
             println!("No cookie set. Fetching generic one.");
             println!("Keep in mind that this will offer very limited functionality.");
 
-            let client = ureq::Agent::new();
+            let client = ureq::Agent::new_with_defaults();
             let res = client
                 .get("https://www.pixiv.net/en/")
                 .call()
                 .expect("Can't contact Pixiv to fetch default header!");
 
             let cookie = res
-                .all("set-cookie")
+                .headers()
                 .iter()
+                .filter(|h| h.0 == "set-cookie")
+                .filter_map(|h| h.1.to_str().ok())
                 .find(|h| h.starts_with("PHPSESSID"))
                 .expect("No cookie obtained!")
                 .to_owned();
@@ -45,20 +52,7 @@ fn main() -> std::io::Result<()> {
     /* Build HTTP client */
     let client = {
         /* Load tls certificate */
-        let certs = rustls_native_certs::load_native_certs().expect("Could not load certs!");
-
-        let mut root_store = rustls::RootCertStore::empty();
-        for cert in certs {
-            root_store
-                .add(&rustls::Certificate(cert.0))
-                .expect("Could not add cert!");
-        }
-        let tls_config = std::sync::Arc::new(
-            rustls::ClientConfig::builder()
-                .with_safe_defaults()
-                .with_root_certificates(root_store)
-                .with_no_client_auth(),
-        );
+        let tls_config = ureq::tls::TlsConfig::builder().build();
 
         /* Add default headers */
         struct PixivDefaultHeaders {
@@ -66,15 +60,15 @@ fn main() -> std::io::Result<()> {
             cookie: String,
         }
 
-        impl ureq::Middleware for PixivDefaultHeaders {
+        impl ureq::middleware::Middleware for PixivDefaultHeaders {
             fn handle(
                 &self,
-                request: ureq::Request,
-                next: ureq::MiddlewareNext,
-            ) -> Result<ureq::Response, ureq::Error> {
-                let request = request
-                    .set("Referer", &self.referer)
-                    .set("Cookie", &self.cookie);
+                mut request: http::Request<SendBody>,
+                next: MiddlewareNext,
+            ) -> Result<http::Response<Body>, ureq::Error> {
+                let headers = request.headers_mut();
+                headers.append("Referer", HeaderValue::from_str(&self.referer).unwrap());
+                headers.append("Cookie", HeaderValue::from_str(&self.cookie).unwrap());
                 next.handle(request)
             }
         }
@@ -85,12 +79,14 @@ fn main() -> std::io::Result<()> {
         };
 
         /* Build https client */
-        ureq::AgentBuilder::new()
+        let config = ureq::Agent::config_builder()
             .tls_config(tls_config)
             .user_agent(USER_AGENT)
             .middleware(middleware)
-            .redirects(0)
-            .build()
+            .max_redirects(0)
+            .build();
+
+        ureq::Agent::new_with_config(config)
     };
 
     /* Build RSS config */

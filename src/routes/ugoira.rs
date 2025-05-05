@@ -11,13 +11,14 @@ pub fn ugoira(client: &ureq::Agent, id: u64) -> Result<rouille::Response, ApiErr
     let meta = fetch_ugoira_meta(&client, id)?;
 
     let ugoira = client.get(&meta.original_src).call()?;
+    let body = ugoira.into_body();
 
-    let reader: Box<dyn Read + Send> = Box::new(ugoira.into_reader());
+    let reader: Box<dyn Read + Send> = Box::new(body.into_reader());
     let reader = BufReader::with_capacity(0x4000, reader);
 
     struct Opaque<'a> {
         reader: BufReader<Box<dyn Read + Send>>,
-        file: Option<zip::read::ZipFile<'a>>,
+        file: Option<zip::read::ZipFile<'a, BufReader<Box<dyn Read + Send>>>>,
         writer: Cursor<Vec<u8>>,
     }
     let mut opaque = Opaque {

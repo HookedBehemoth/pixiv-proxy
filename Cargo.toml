@@ -6,22 +6,22 @@ edition = "2021"
 [dependencies]
 pico-args = "0.5"
 rouille = { version = "3.6", default-features = false }
-ureq = { version = "2.7", features = ["json", "tls", "rustls"] }
+ureq = { version = "3.0", features = ["json", "rustls"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-maud = "0.25"
+maud = "0.27"
 percent-encoding = "2.1"
-rustls = "0.21"
-rustls-native-certs = "0.6"
+rustls = { version = "0.23", default-features = false, features = ["ring"] }
+rustls-native-certs = "0.8"
 chrono = { version = "0.4.19", default-features = false, features = ["clock", "serde"] }
 rss = "2.0"
 # ugoira
-zip = { version = "0.6.2", default-features = false, optional = true }
+zip = { version = "2.6", default-features = false, optional = true }
 libc = { version = "0.2", optional = true }
 phf = { version = "0.11.2", features = ["phf_macros", "macros"] }
 
 [build-dependencies]
-cc = { version = "1.0", optional = true }
+cc = { version = "1.2", optional = true }
 grass = { version = "0.13", default-features = false }
 glob = "0.3"
 

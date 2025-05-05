@@ -35,7 +35,7 @@ pub fn fetch_user_illust_ids(client: &ureq::Agent, user_id: u64) -> Result<Vec<u
     let mut ids: Vec<u64> = ids
         .illusts
         .into_iter()
-        .chain(ids.manga.into_iter())
+        .chain(ids.manga)
         .collect();
 
     ids.sort_unstable();

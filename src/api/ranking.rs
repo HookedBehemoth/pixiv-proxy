@@ -23,7 +23,7 @@ where
 {
     struct StringOrNone(Option<String>);
 
-    impl<'de> Visitor<'de> for StringOrNone {
+    impl Visitor<'_> for StringOrNone {
         type Value = Option<String>;
 
         fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -69,7 +69,7 @@ pub fn fetch_ranking(
     let url = format!(
         "https://www.pixiv.net/ranking.php?mode=daily&p={}&format=json{}",
         page,
-        date.unwrap_or_else(|| "".to_string())
+        date.unwrap_or_default()
     );
 
     fetch_json::<Ranking>(client, &url)

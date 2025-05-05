@@ -9,19 +9,11 @@ pub enum ApiError {
 impl From<ureq::Error> for ApiError {
     fn from(err: ureq::Error) -> Self {
         match err {
-            ureq::Error::Status(code, response) => Self::External(
+            ureq::Error::StatusCode(code) => Self::External(
                 code,
-                response
-                    .into_string()
-                    .map(Cow::from)
-                    .unwrap_or_else(|_| Cow::from("")),
+                "".into()
             ),
-            ureq::Error::Transport(transport) => Self::Internal(
-                transport
-                    .message()
-                    .map(|s| s.to_owned().into())
-                    .unwrap_or_else(|| "Unknown Transport Error".into()),
-            ),
+            _ => Self::Internal("Unknown Error".into()),
         }
     }
 }

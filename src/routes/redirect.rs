@@ -22,8 +22,10 @@ pub fn fanbox(client: &ureq::Agent, id: u64) -> Result<rouille::Response, ApiErr
     let response = client.get(&url).call()?;
 
     let destination = response
-        .header("location")
+        .headers()
+        .get("location")
         .ok_or_else(|| ApiError::External(404, "User not found".into()))?;
+    let destination = destination.to_str().map_err(|_| ApiError::External(404, "Invalid location".into()))?;
 
-    Ok(rouille::Response::redirect_301(destination.to_owned()))
+    Ok(rouille::Response::redirect_301(destination.to_string()))
 }

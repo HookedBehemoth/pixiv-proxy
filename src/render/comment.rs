@@ -35,12 +35,12 @@ impl Render for &PixivComment {
 }
 
 fn render_comment_text(comment: &str) -> Markup {
-    let mut chars = comment.chars();
+    let chars = comment.chars();
     let mut in_stamp = false;
     let mut sequences = vec![];
     let mut emoji = String::new();
     let mut seq = String::new();
-    while let Some(char) = chars.next() {
+    for char in chars {
         match (in_stamp, char) {
             (_, '(') => {
                 if in_stamp {
@@ -50,7 +50,7 @@ fn render_comment_text(comment: &str) -> Markup {
                 }
                 in_stamp = true;
                 /* Flush pending comment */
-                if seq.len() > 0 {
+                if !seq.is_empty() {
                     sequences.push(html! { (seq) });
                     seq = String::new()
                 }
@@ -87,9 +87,9 @@ fn render_comment_text(comment: &str) -> Markup {
             @for seq in sequences {
                 (seq)
             }
-            @if in_stamp && emoji.len() > 0 {
+            @if in_stamp && !emoji.is_empty() {
                 "(" (emoji)
-            } @else if seq.len() > 0 {
+            } @else if !seq.is_empty() {
                 (seq)
             }
         }

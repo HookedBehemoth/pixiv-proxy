@@ -6,7 +6,7 @@ where
 {
     struct StringOrNumberVisitor;
 
-    impl<'de> serde::de::Visitor<'de> for StringOrNumberVisitor {
+    impl serde::de::Visitor<'_> for StringOrNumberVisitor {
         type Value = u64;
 
         fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -74,7 +74,7 @@ where
 {
     struct StripUrlPrefixVisitor;
 
-    impl<'de> serde::de::Visitor<'de> for StripUrlPrefixVisitor {
+    impl serde::de::Visitor<'_> for StripUrlPrefixVisitor {
         type Value = String;
 
         fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {

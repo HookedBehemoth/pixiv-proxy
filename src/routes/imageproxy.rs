@@ -48,26 +48,35 @@ fn proxy(
         .headers()
         .filter(|(h, _)| !FORBIDDEN_SERVER_HEADERS.contains(&h.to_lowercase().as_str()))
     {
-        req = req.set(header.0, header.1);
+        req = req.header(header.0, header.1);
     }
 
     let res = req.call()?;
     let status = res.status();
 
-    let headers = res
-        .headers_names()
+    let headers = res.headers()
         .iter()
-        .filter(|h| !FORBIDDEN_CLIENT_HEADERS.contains(&h.as_str()))
-        .map(|s| (s.clone().into(), res.header(s).unwrap().to_owned().into()))
+        .filter(|&(name, _)| !FORBIDDEN_CLIENT_HEADERS.contains(&name.as_str()))
+        .map(|(name, value)| (name.to_string().into(), value.to_str().unwrap().to_string().into()))
         .collect();
 
-    let reader = match res.header("Content-Length").map(|s| s.parse::<usize>()) {
-        Some(Ok(len)) => rouille::ResponseBody::from_reader_and_size(res.into_reader(), len),
-        _ => rouille::ResponseBody::from_reader(res.into_reader()),
+    let length = res.headers()
+        .iter()
+        .find(|&(name, _)| name == "Content-Length")
+        .iter()
+        .filter_map(|(_, value)| value.to_str().ok())
+        .map(|value| value.parse::<usize>())
+        .find(|result| result.is_ok());
+    
+    let body = res.into_body();
+
+    let reader = match length {
+        Some(Ok(len)) => rouille::ResponseBody::from_reader_and_size(body.into_reader(), len),
+        _ => rouille::ResponseBody::from_reader(body.into_reader()),
     };
 
     Ok(rouille::Response {
-        status_code: status,
+        status_code: status.as_u16(),
         headers,
         data: reader,
         upgrade: None,

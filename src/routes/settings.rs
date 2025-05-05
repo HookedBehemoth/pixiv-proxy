@@ -23,7 +23,7 @@ pub fn get_blocked_userids(request: &rouille::Request) -> HashSet<u64> {
 
 fn format_blocked_userids(users: &HashSet<u64>) -> String {
     users.iter().fold(String::new(), |set, user| {
-        if set.len() == 0 {
+        if set.is_empty() {
             format!("{user}")
         } else {
             format!("{set}|{user}")
@@ -33,7 +33,7 @@ fn format_blocked_userids(users: &HashSet<u64>) -> String {
 
 pub fn set_blocked_userids(response: &mut rouille::Response, users: &HashSet<u64>) {
     let cookie_value = users.iter().fold(String::new(), |set, user| {
-        if set.len() == 0 {
+        if set.is_empty() {
             format!("{user}")
         } else {
             format!("{set}%7C{user}")

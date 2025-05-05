@@ -2,7 +2,7 @@ use crate::{
     api::{
         error::ApiError,
         sketch::{
-            fetch_feedbacks, fetch_item, fetch_latest_user_posts, fetch_lives, fetch_public_wall,
+            fetch_feedbacks, fetch_item, fetch_lives, fetch_public_wall,
             fetch_tag_wall, fetch_user,
         },
     },

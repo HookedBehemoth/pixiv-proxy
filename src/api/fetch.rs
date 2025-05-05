@@ -1,18 +1,20 @@
 use crate::api::{common::ApiResponse, error::ApiError};
 use serde::Deserialize;
+use ureq::Body;
 
-fn fetch_json_internal<T>(response: ureq::Response) -> Result<T, ApiError>
+fn fetch_json_internal<T>(response: ureq::http::Response<Body>) -> Result<T, ApiError>
 where
     T: for<'a> Deserialize<'a>,
 {
     let status = response.status();
-    if !(200..300).contains(&status) {
+    let mut body = response.into_body();
+    if !status.is_success() {
         Err(ApiError::External(
-            response.status(),
-            response.into_string().map_or("".into(), |s| s.into()),
+            status.as_u16(),
+            body.read_to_string().map_or("".into(), |s| s.into()),
         ))
     } else {
-        match response.into_json::<T>() {
+        match body.read_json::<T>() {
             Ok(res) => Ok(res),
             Err(err) => Err(ApiError::Internal(err.to_string().into())),
         }
@@ -36,8 +38,8 @@ where
     fetch_json_internal(
         client
             .post(url)
-            .set("Content-Type", "application/x-www-form-urlencoded")
-            .send_string(&body)?,
+            .header("Content-Type", "application/x-www-form-urlencoded")
+            .send(&body)?,
     )
 }
 
