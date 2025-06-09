@@ -42,20 +42,20 @@ fn render_search(
 
     let format = format!("/search?q={}&order={}&mode={}&s_mode={}&p=", tags, query.order, query.rating, query.mode);
     let next_page_ajax = format!("{}{}&ajax=", format, query.page + 1);
-    let load_more = Some(html! {
-        div.load_more {
-            button endpoint=(next_page_ajax) onclick="inject(this, true, true)" {
-                "Load more..."
-            }
-        }
-    });
+    // let load_more = Some(html! {
+    //     div.load_more {
+    //         button endpoint=(next_page_ajax) onclick="inject(this, true, true)" {
+    //             "Load more..."
+    //         }
+    //     }
+    // });
 
     if request.get_param("ajax").is_some() {
         let document = html! {
             (render_grid_contents(&search.illust_manga.data, &blocked_set))
-            @if let Some(load_more) = load_more {
-                (load_more)
-            }
+            // @if let Some(load_more) = load_more {
+            //     (load_more)
+            // }
         };
         return Ok(rouille::Response::html(document.into_string()));
     }
@@ -67,7 +67,7 @@ fn render_search(
             (&search.illust_manga.total)
             (render_alt_search(tags, &query))
             (render_options(tags, query.rating, query.order, query.mode))
-            (render_grid(&search.illust_manga.data, &blocked_set, load_more))
+            (render_grid(&search.illust_manga.data, &blocked_set, None))
             @if search.illust_manga.total > 60 {
                 // @if roots.has_next {
                     // (load_more)

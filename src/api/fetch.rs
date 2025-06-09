@@ -24,6 +24,7 @@ pub(crate) fn fetch_json<T>(client: &ureq::Agent, url: &str) -> Result<T, ApiErr
 where
     T: for<'a> Deserialize<'a>,
 {
+    println!("Fetching URL: {}", url);
     fetch_json_internal(client.get(url).call()?)
 }
 
@@ -35,6 +36,7 @@ pub(crate) fn post_and_fetch_json<T>(
 where
     T: for<'a> Deserialize<'a>,
 {
+    println!("Fetching URL: {}", url);
     fetch_json_internal(
         client
             .post(url)

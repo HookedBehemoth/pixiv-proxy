@@ -14,9 +14,9 @@ pub fn render_grid(list: &[PixivSearchResult], blocked_users: &HashSet<u64>, loa
         }
         ul.search {
             (render_grid_contents(list, blocked_users))
-            @if let Some(load_more) = load_more {
-                (load_more)
-            }
+        }
+        @if let Some(load_more) = load_more {
+            (load_more)
         }
     }
 }
@@ -30,21 +30,23 @@ pub fn render_grid_contents(list: &[PixivSearchResult], blocked_users: &HashSet<
             @let (width, height) = util::scale_by_aspect_ratio(artwork.width, artwork.height, 200, 400);
             li {
                 a href=[link] {
-                    @if artwork.r18 == 1 {
-                        div.search__hover.search__warn { "R-18" }
-                    }
-                    @if artwork.page_count > 1 {
-                        div.search__hover.search__count {
-                            svg { use href="#page" {} }
-                            (artwork.page_count)
+                    div {
+                        @if artwork.r18 == 1 {
+                            div.warn.hover { "R-18" }
                         }
+                        @if artwork.page_count > 1 {
+                            div.count.hover {
+                                svg { use href="#page" {} }
+                                (artwork.page_count)
+                            }
+                        }
+                        @if artwork.illust_type == 2 {
+                            svg.play { use href="#play" {} }
+                        }
+                        img src=(&img) width=(width) height=(height) alt=(&artwork.title);
                     }
-                    @if artwork.illust_type == 2 {
-                        svg.search__play { use href="#play" {} }
-                    }
-                    img src=(&img) width=(width) height=(height) alt=(&artwork.title);
+                    span { (&artwork.title) }
                 }
-                a href=[link] { (&artwork.title) }
             }
         }
     }

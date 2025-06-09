@@ -73,7 +73,7 @@ fn main() -> std::io::Result<()> {
             }
         }
 
-        let middleware = PixivDefaultHeaders {
+        let middleware: PixivDefaultHeaders = PixivDefaultHeaders {
             referer: "https://pixiv.net/".to_string(),
             cookie,
         };
