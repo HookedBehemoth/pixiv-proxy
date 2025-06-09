@@ -44,7 +44,7 @@ namespace {
 
     using ReadFuncProto = int (*)(void *opaque, uint8_t *buf, int buf_size);
     using NextFuncProto = void (*)(void *opaque);
-    using WriteFuncProto = int (*)(void *opaque, uint8_t *buf, int buf_size);
+    using WriteFuncProto = int (*)(void *opaque, const uint8_t *buf, int buf_size);
     using SeekFuncProto = int64_t (*)(void *opaque, int64_t offset, int whence);
 
 #define CHECK_RESULT(exp)                                                    \
