@@ -6,8 +6,12 @@ use super::{
 };
 use serde::Deserialize;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 pub struct PixivUrls {
+    #[serde(deserialize_with = "strip_url_prefix")]
+    pub small: String,
+    #[serde(deserialize_with = "strip_url_prefix")]
+    pub regular: String,
     #[serde(deserialize_with = "strip_url_prefix")]
     pub original: String,
 }
@@ -34,8 +38,23 @@ pub struct Artwork {
     pub comment_count: u32,
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all(deserialize = "camelCase", serialize = "snake_case"))]
+pub struct Page {
+    // NOTE: these are not identical but have all the fields we care about.
+    pub urls: PixivUrls,
+    pub width: u32,
+    pub height: u32,
+}
+
 pub fn fetch_artwork(client: &ureq::Agent, id: u64) -> Result<Artwork, ApiError> {
     let url = format!("https://www.pixiv.net/ajax/illust/{}", id);
+
+    fetch(client, &url)
+}
+
+pub fn fetch_pages(client: &ureq::Agent, id: u64) -> Result<Vec<Page>, ApiError> {
+    let url = format!("https://www.pixiv.net/ajax/illust/{}/pages", id);
 
     fetch(client, &url)
 }

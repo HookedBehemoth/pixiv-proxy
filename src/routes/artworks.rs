@@ -1,15 +1,26 @@
 use maud::{html, PreEscaped};
 
 use crate::{
-    api::{artwork::fetch_artwork, error::ApiError},
+    api::{artwork::{fetch_artwork, fetch_pages, Page}, error::ApiError},
     render::{datetime::DateTimeWrapper, document::document, svg},
     util,
 };
 
+const UGOIRA: u8 = 2;
+
 pub fn artwork(client: &ureq::Agent, id: u64) -> Result<rouille::Response, ApiError> {
     let artwork = fetch_artwork(client, id)?;
+    let is_ugoira = artwork.illust_type == UGOIRA;
+    let pages = if !is_ugoira && artwork.page_count > 1 {
+        fetch_pages(client, id)?
+    } else {
+        vec![Page{
+            urls: artwork.urls.clone(),
+            width: artwork.width,
+            height: artwork.height,
+        }]
+    };
 
-    let image = &artwork.urls.original;
     let date = chrono::DateTime::parse_from_rfc3339(&artwork.create_date);
 
     let document = document(
@@ -42,22 +53,34 @@ pub fn artwork(client: &ureq::Agent, id: u64) -> Result<rouille::Response, ApiEr
             }
             /* Images */
             div.artworks {
-                @match artwork.illust_type {
-                    2 => {
-                        @if cfg!(feature = "ugoira") {
-                            @let src = format!("/ugoira/{}", id);
-                            video poster=(&image) src=(&src) controls autoplay muted loop playsinline {}
-                        } @else {
-                            img src=(&image) alt="";
-                        }
-                    },
-                    _ => @for url in std::iter::once(image.clone())
-                        .chain(
-                            (1..artwork.page_count).map(|i|
-                                image.clone().replace("_p0.", &format!("_p{}.", i))
+                @if is_ugoira && cfg!(feature = "ugoira") {
+                    @let src = format!("/ugoira/{}", id);
+                    video poster=(&artwork.urls.original) src=(&src) controls autoplay muted loop playsinline {}
+                } @else {
+                    @for page in &pages {
+                        @let small = &page.urls.small;
+                        @let regular = &page.urls.regular;
+                        @let original = &page.urls.original;
+                        @let aspect = page.width as f32 / page.height as f32;
+                        @let (small_width, regular_width) = if aspect > 1.0 {
+                            (540, 1200)
+                        } else {
+                            (
+                                (540 as f32 * aspect).ceil() as u32,
+                                (1200 as f32 * aspect).ceil() as u32
                             )
-                        ) {
-                        img src=(&url) alt=(&artwork.alt);
+                        };
+
+                        a href=(original) download {
+                            picture {
+                                source media=(format!("(max-width: {small_width}px)")) srcset=(small);
+                                source media=(format!("(max-width: {regular_width}px)")) srcset=(regular);
+                                img src=(original)
+                                    width=(page.width) height=(page.height)
+                                    alt=(&artwork.alt)
+                                    loading="lazy";
+                            }
+                        }
                     }
                 }
             }
@@ -73,27 +96,19 @@ pub fn artwork(client: &ureq::Agent, id: u64) -> Result<rouille::Response, ApiEr
         Some(html! {
             meta name="twitter:title" content=(&artwork.illust_title);
             meta name="twitter:creator" content=(&artwork.user_name);
-            meta name="twitter:image" content=(image);
-            @match artwork.illust_type {
-                2 => {
-                    meta name="twitter:card" content="player";
-                    @let url = format!("/ugoira/{}", id);
-                    meta name="twitter:player:stream" content=(&url);
-                    meta name="twitter:player:stream:content_type" content="video/mp4";
-                    meta name="twitter:player:width" content=(artwork.width);
-                    meta name="twitter:player:height" content=(artwork.height);
-                },
-                _ => {
-                    @for url in std::iter::once(image.clone())
-                        .chain(
-                            (1..artwork.page_count).map(|i|
-                                image.clone().replace("_p0.", &format!("_p{}.", i))
-                            )
-                        ) {
-                        meta name="og:image" src=(&url);
-                    }
-                    meta name="twitter:card" content="summary_large_image";
+            meta name="twitter:image" content=(artwork.urls.original);
+            @if is_ugoira {
+                meta name="twitter:card" content="player";
+                @let url = format!("/ugoira/{}", id);
+                meta name="twitter:player:stream" content=(&url);
+                meta name="twitter:player:stream:content_type" content="video/mp4";
+                meta name="twitter:player:width" content=(artwork.width);
+                meta name="twitter:player:height" content=(artwork.height);
+            } @else {
+                @for page in &pages {
+                    meta name="twitter:image" content=(&page.urls.original);
                 }
+                meta name="twitter:card" content="summary_large_image";
             }
             @let description = util::truncate(&artwork.description, 200);
             meta property="og:description" content=(&description);
