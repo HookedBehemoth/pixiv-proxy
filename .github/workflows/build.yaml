@@ -1,4 +1,4 @@
-name: Rust
+name: Build
 
 on:
   push:
@@ -10,12 +10,36 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
+  rust:
 
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
-    - uses: Swatinem/rust-cache@v1
+    - uses: actions/checkout@v4
+    - uses: Swatinem/rust-cache@v2
     - name: Clippy
       run: cargo clippy
+
+  container-matrix:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [alpine, alpine-ugoira]
+        include:
+          - target: alpine
+            tag: reapixa:alpine
+          - target: alpine-ugoira
+            tag: reapixa:alpine-ugoira
+
+    steps:
+    - uses: actions/checkout@v4
+    - uses: docker/setup-buildx-action@v3
+    - name: Build image
+      uses: docker/build-push-action@v6
+      with:
+        context: .
+        file: Dockerfile
+        target: ${{ matrix.target }}
+        push: false
+        tags: ${{ matrix.tag }}

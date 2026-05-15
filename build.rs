@@ -8,6 +8,12 @@ fn compile_ugoira() {
     use std::path::Path;
 
     let is_debug = env::var_os("PROFILE") == Some("debug".into());
+    let ffmpeg_prefix = env::var("FFMPEG_PREFIX")
+        .ok()
+        .or_else(|| env::var("FFMPEG_DIR").ok());
+    let link_static = env::var("FFMPEG_STATIC")
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false);
 
     let mut build = cc::Build::new();
 
@@ -23,9 +29,7 @@ fn compile_ugoira() {
         .define("__STDC_CONSTANT_MACROS", None)
         .opt_level(if is_debug { 0 } else { 3 });
 
-    if build.get_compiler().is_like_msvc() {
-        let ffmpeg_dir = env::var("FFMPEG_DIR").unwrap();
-
+    if let Some(ffmpeg_dir) = ffmpeg_prefix {
         let include_dir = Path::new(&ffmpeg_dir).join("include");
         build.include(include_dir.display().to_string());
 
@@ -36,9 +40,21 @@ fn compile_ugoira() {
     build.compile("ugoira.a");
 
     println!("cargo:rerun-if-changed=ugoira.cpp");
+    println!("cargo:rerun-if-env-changed=FFMPEG_PREFIX");
+    println!("cargo:rerun-if-env-changed=FFMPEG_DIR");
+    println!("cargo:rerun-if-env-changed=FFMPEG_STATIC");
 
-    for lib in &["avcodec", "avformat", "avutil", "swresample", "swscale"] {
-        println!("cargo:rustc-link-lib={}", lib);
+    let mut libs = vec!["avcodec", "avformat", "avutil", "swresample", "swscale"];
+    if link_static {
+        libs.push("x264");
+    }
+    
+    for lib in libs {
+        if link_static {
+            println!("cargo:rustc-link-lib=static={}", lib);
+        } else {
+            println!("cargo:rustc-link-lib={}", lib);
+        }
     }
 }
 

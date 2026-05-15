@@ -44,8 +44,36 @@ namespace {
 
     using ReadFuncProto = int (*)(void *opaque, uint8_t *buf, int buf_size);
     using NextFuncProto = void (*)(void *opaque);
-    using WriteFuncProto = int (*)(void *opaque, const uint8_t *buf, int buf_size);
+    using WriteFuncProto = int (*)(void *opaque, uint8_t *buf, int buf_size);
     using SeekFuncProto = int64_t (*)(void *opaque, int64_t offset, int whence);
+
+    struct OutputCallbacks {
+        void *opaque;
+        WriteFuncProto write;
+        SeekFuncProto seek;
+    };
+
+#if LIBAVFORMAT_VERSION_MAJOR >= 61
+    using AvioWriteProto = int (*)(void *opaque, const uint8_t *buf, int buf_size);
+#else
+    using AvioWriteProto = int (*)(void *opaque, uint8_t *buf, int buf_size);
+#endif
+
+    int avio_write_bridge(
+#if LIBAVFORMAT_VERSION_MAJOR >= 61
+        void *opaque, const uint8_t *buf, int buf_size
+#else
+        void *opaque, uint8_t *buf, int buf_size
+#endif
+    ) {
+        auto callbacks = static_cast<OutputCallbacks *>(opaque);
+        return callbacks->write(callbacks->opaque, const_cast<uint8_t *>(buf), buf_size);
+    }
+
+    int64_t avio_seek_bridge(void *opaque, int64_t offset, int whence) {
+        auto callbacks = static_cast<OutputCallbacks *>(opaque);
+        return callbacks->seek(callbacks->opaque, offset, whence);
+    }
 
 #define CHECK_RESULT(exp)                                                    \
     do {                                                                     \
@@ -120,7 +148,15 @@ extern "C" int convert(
     CHECK_NULL(buffer);
     auto _buffer_guard = ScopeGuard([&]() { av_free(buffer); });
 
-    auto oioc = avio_alloc_context(buffer, 0x4000, 1, opaque, nullptr, write, seek);
+    auto output_callbacks = OutputCallbacks{opaque, write, seek};
+    auto oioc = avio_alloc_context(
+        buffer,
+        0x4000,
+        1,
+        &output_callbacks,
+        nullptr,
+        static_cast<AvioWriteProto>(avio_write_bridge),
+        avio_seek_bridge);
     CHECK_NULL(oioc);
     auto _oioc_guard = ScopeGuard([&]() { av_freep(&oioc->buffer);
                                          avio_context_free(&oioc); });
